@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR, { mutate } from 'swr';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { Plus, Trash2, Package, Loader2, X } from 'lucide-react';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 const STATUS_MAP: Record<string, string> = {
     'Ativo': 'badge-green', 'Manutenção': 'badge-amber', 'Desativado': 'badge-red'
@@ -73,17 +71,16 @@ function AssetModal({ onClose, onSave }: { onClose: () => void; onSave: () => vo
 
 export default function AssetsPage() {
     const [modal, setModal] = useState(false);
-    const { data: assets = [], isLoading } = useSWR<Asset[]>('/api/assets', fetcher);
+    const { data: assets, isLoading, refresh } = useRealtimeTable<Asset>('/api/assets', 'assets');
 
     const handleDelete = async (id: string) => {
         if (!confirm('Remover este ativo?')) return;
         await fetch(`/api/assets/${id}`, { method: 'DELETE' });
-        mutate('/api/assets');
     };
 
     return (
         <div>
-            {modal && <AssetModal onClose={() => setModal(false)} onSave={() => mutate('/api/assets')} />}
+            {modal && <AssetModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Inventário de Ativos</h1>
@@ -111,9 +108,9 @@ export default function AssetsPage() {
                                         <td style={{ fontWeight: 600 }}>{a.name}</td>
                                         <td><span className="badge badge-blue">{a.type}</span></td>
                                         <td><span className={`badge ${STATUS_MAP[a.status] || 'badge-blue'}`}>{a.status}</span></td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{a.ip || '—'}</td>
+                                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>{a.ip || '—'}</td>
                                         <td>{a.location || '—'}</td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{a.serial || '—'}</td>
+                                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>{a.serial || '—'}</td>
                                         <td>
                                             <button onClick={() => handleDelete(a.id)} className="btn btn-danger" style={{ padding: '5px 10px' }}>
                                                 <Trash2 size={14} />

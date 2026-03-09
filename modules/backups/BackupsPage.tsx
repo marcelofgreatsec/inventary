@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR, { mutate } from 'swr';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { Plus, Trash2, HardDrive, Loader2, X } from 'lucide-react';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 const STATUS_MAP: Record<string, string> = {
     'Sucesso': 'badge-green', 'Falha': 'badge-red', 'Rodando': 'badge-blue', 'Pendente': 'badge-amber'
@@ -12,11 +10,11 @@ const STATUS_MAP: Record<string, string> = {
 
 interface Backup {
     id: string; name: string; server: string; status: string;
-    type: string; size_gb?: number; last_run?: string; next_run?: string;
+    type: string; size_gb?: number; last_run?: string;
 }
 
 function BackupModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
-    const [form, setForm] = useState({ name: '', server: '', type: 'Completo', status: 'Pendente', size_gb: '', notes: '' });
+    const [form, setForm] = useState({ name: '', server: '', type: 'Completo', status: 'Pendente', size_gb: '' });
     const [saving, setSaving] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -26,7 +24,7 @@ function BackupModal({ onClose, onSave }: { onClose: () => void; onSave: () => v
         onSave(); onClose(); setSaving(false);
     };
 
-    const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(p => ({ ...p, [k]: e.target.value }));
+    const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(p => ({ ...p, [k]: e.target.value }));
 
     return (
         <div className="modal-overlay">
@@ -67,19 +65,17 @@ function BackupModal({ onClose, onSave }: { onClose: () => void; onSave: () => v
 
 export default function BackupsPage() {
     const [modal, setModal] = useState(false);
-    const { data: backups = [], isLoading } = useSWR<Backup[]>('/api/backups', fetcher);
+    const { data: backups, isLoading, refresh } = useRealtimeTable<Backup>('/api/backups', 'backups');
+    const fmt = (d?: string) => d ? new Date(d).toLocaleString('pt-BR') : '—';
 
     const handleDelete = async (id: string) => {
         if (!confirm('Remover esta rotina?')) return;
         await fetch(`/api/backups/${id}`, { method: 'DELETE' });
-        mutate('/api/backups');
     };
-
-    const fmt = (d?: string) => d ? new Date(d).toLocaleString('pt-BR') : '—';
 
     return (
         <div>
-            {modal && <BackupModal onClose={() => setModal(false)} onSave={() => mutate('/api/backups')} />}
+            {modal && <BackupModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Gestão de Backups</h1>
@@ -87,7 +83,6 @@ export default function BackupsPage() {
                 </div>
                 <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={16} /> Nova Rotina</button>
             </div>
-
             <div className="card">
                 {isLoading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
@@ -101,14 +96,12 @@ export default function BackupsPage() {
                                 {backups.map(b => (
                                     <tr key={b.id}>
                                         <td style={{ fontWeight: 600 }}>{b.name}</td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{b.server}</td>
+                                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>{b.server}</td>
                                         <td><span className="badge badge-purple">{b.type}</span></td>
                                         <td><span className={`badge ${STATUS_MAP[b.status] || 'badge-blue'}`}>{b.status}</span></td>
                                         <td>{b.size_gb ? `${b.size_gb} GB` : '—'}</td>
                                         <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{fmt(b.last_run)}</td>
-                                        <td>
-                                            <button onClick={() => handleDelete(b.id)} className="btn btn-danger" style={{ padding: '5px 10px' }}><Trash2 size={14} /></button>
-                                        </td>
+                                        <td><button onClick={() => handleDelete(b.id)} className="btn btn-danger" style={{ padding: '5px 10px' }}><Trash2 size={14} /></button></td>
                                     </tr>
                                 ))}
                             </tbody>

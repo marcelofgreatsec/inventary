@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR, { mutate } from 'swr';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { Plus, Trash2, FileText, Loader2, X } from 'lucide-react';
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 const CAT_MAP: Record<string, string> = {
     'Procedimento': 'badge-blue', 'Política': 'badge-purple',
@@ -18,14 +16,11 @@ interface Doc {
 function DocModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
     const [form, setForm] = useState({ title: '', category: 'Procedimento', content: '' });
     const [saving, setSaving] = useState(false);
-
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
+        e.preventDefault(); setSaving(true);
         await fetch('/api/documents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
         onSave(); onClose(); setSaving(false);
     };
-
     return (
         <div className="modal-overlay">
             <div className="modal" style={{ maxWidth: 640 }}>
@@ -35,27 +30,11 @@ function DocModal({ onClose, onSave }: { onClose: () => void; onSave: () => void
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="form-group"><label>Título *</label><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Procedimento de Backup Mensal" /></div>
-                    <div className="form-group">
-                        <label>Categoria</label>
-                        <select className="select" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
-                            {['Procedimento', 'Política', 'Manual', 'Relatório', 'Outro'].map(c => <option key={c}>{c}</option>)}
-                        </select>
-                    </div>
-                    <div className="form-group">
-                        <label>Conteúdo</label>
-                        <textarea
-                            className="input"
-                            style={{ minHeight: 160, resize: 'vertical' }}
-                            value={form.content}
-                            onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
-                            placeholder="Descreva o procedimento ou documentação..."
-                        />
-                    </div>
+                    <div className="form-group"><label>Categoria</label><select className="select" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>{['Procedimento', 'Política', 'Manual', 'Relatório', 'Outro'].map(c => <option key={c}>{c}</option>)}</select></div>
+                    <div className="form-group"><label>Conteúdo</label><textarea className="input" style={{ minHeight: 160, resize: 'vertical' }} value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Descreva o procedimento..." /></div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="btn btn-primary" disabled={saving}>
-                            {saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : 'Salvar Documento'}
-                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : 'Salvar Documento'}</button>
                     </div>
                 </form>
             </div>
@@ -66,17 +45,16 @@ function DocModal({ onClose, onSave }: { onClose: () => void; onSave: () => void
 export default function DocsPage() {
     const [modal, setModal] = useState(false);
     const [expanded, setExpanded] = useState<string | null>(null);
-    const { data: docs = [], isLoading } = useSWR<Doc[]>('/api/documents', fetcher);
+    const { data: docs, isLoading, refresh } = useRealtimeTable<Doc>('/api/documents', 'documents');
 
     const handleDelete = async (id: string) => {
         if (!confirm('Remover este documento?')) return;
         await fetch(`/api/documents/${id}`, { method: 'DELETE' });
-        mutate('/api/documents');
     };
 
     return (
         <div>
-            {modal && <DocModal onClose={() => setModal(false)} onSave={() => mutate('/api/documents')} />}
+            {modal && <DocModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Documentações</h1>
@@ -84,7 +62,6 @@ export default function DocsPage() {
                 </div>
                 <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={16} /> Nova Doc</button>
             </div>
-
             {isLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
             ) : docs.length === 0 ? (
@@ -98,14 +75,14 @@ export default function DocsPage() {
                                     <FileText size={18} color="var(--accent)" />
                                     <div>
                                         <div style={{ fontWeight: 600 }}>{d.title}</div>
-                                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Por {d.author_name || 'Sistema'} • {new Date(d.created_at).toLocaleDateString('pt-BR')}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontFamily: 'JetBrains Mono, monospace' }}>Por {d.author_name || 'Sistema'} • {new Date(d.created_at).toLocaleDateString('pt-BR')}</div>
                                     </div>
                                     <span className={`badge ${CAT_MAP[d.category] || 'badge-blue'}`}>{d.category}</span>
                                 </div>
                                 <button onClick={e => { e.stopPropagation(); handleDelete(d.id); }} className="btn btn-danger" style={{ padding: '5px 10px' }}><Trash2 size={14} /></button>
                             </div>
                             {expanded === d.id && d.content && (
-                                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'JetBrains Mono, monospace' }}>
                                     {d.content}
                                 </div>
                             )}

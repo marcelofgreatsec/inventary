@@ -1,33 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR, { mutate } from 'swr';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { Plus, Trash2, Server, Loader2, X } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
 const STATUS_MAP: Record<string, string> = { 'Online': 'badge-green', 'Offline': 'badge-red', 'Manutenção': 'badge-amber' };
 
 interface Infra {
     id: string; name: string; type: string; status: string;
-    ip?: string; os?: string; cpu?: string; ram_gb?: number; disk_gb?: number; location?: string;
+    ip?: string; os?: string; cpu?: string; ram_gb?: number; disk_gb?: number;
 }
 
 function InfraModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
     const [form, setForm] = useState({ name: '', type: 'Servidor', status: 'Online', ip: '', os: '', cpu: '', ram_gb: '', disk_gb: '', location: '' });
     const [saving, setSaving] = useState(false);
-
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
-        await fetch('/api/infrastructure', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...form, ram_gb: form.ram_gb ? parseInt(form.ram_gb) : null, disk_gb: form.disk_gb ? parseInt(form.disk_gb) : null })
-        });
+        e.preventDefault(); setSaving(true);
+        await fetch('/api/infrastructure', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, ram_gb: form.ram_gb ? parseInt(form.ram_gb) : null, disk_gb: form.disk_gb ? parseInt(form.disk_gb) : null }) });
         onSave(); onClose(); setSaving(false);
     };
-
     const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(p => ({ ...p, [k]: e.target.value }));
-
     return (
         <div className="modal-overlay">
             <div className="modal" style={{ maxWidth: 580 }}>
@@ -38,18 +30,8 @@ function InfraModal({ onClose, onSave }: { onClose: () => void; onSave: () => vo
                 <form onSubmit={handleSubmit}>
                     <div className="form-group"><label>Nome *</label><input className="input" value={form.name} onChange={f('name')} required placeholder="SRV-APP-01" /></div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="form-group">
-                            <label>Tipo</label>
-                            <select className="select" value={form.type} onChange={f('type')}>
-                                {['Servidor', 'Switch', 'Firewall', 'Router', 'Storage', 'VM', 'Outro'].map(t => <option key={t}>{t}</option>)}
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>Status</label>
-                            <select className="select" value={form.status} onChange={f('status')}>
-                                {['Online', 'Offline', 'Manutenção'].map(s => <option key={s}>{s}</option>)}
-                            </select>
-                        </div>
+                        <div className="form-group"><label>Tipo</label><select className="select" value={form.type} onChange={f('type')}>{['Servidor', 'Switch', 'Firewall', 'Router', 'Storage', 'VM', 'Outro'].map(t => <option key={t}>{t}</option>)}</select></div>
+                        <div className="form-group"><label>Status</label><select className="select" value={form.status} onChange={f('status')}>{['Online', 'Offline', 'Manutenção'].map(s => <option key={s}>{s}</option>)}</select></div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div className="form-group"><label>IP</label><input className="input" value={form.ip} onChange={f('ip')} placeholder="10.0.0.1" /></div>
@@ -60,12 +42,9 @@ function InfraModal({ onClose, onSave }: { onClose: () => void; onSave: () => vo
                         <div className="form-group"><label>RAM (GB)</label><input className="input" type="number" value={form.ram_gb} onChange={f('ram_gb')} placeholder="32" /></div>
                         <div className="form-group"><label>Disco (GB)</label><input className="input" type="number" value={form.disk_gb} onChange={f('disk_gb')} placeholder="500" /></div>
                     </div>
-                    <div className="form-group"><label>Localização</label><input className="input" value={form.location} onChange={f('location')} placeholder="Rack A - Pos 12" /></div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="btn btn-primary" disabled={saving}>
-                            {saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : 'Salvar'}
-                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : 'Salvar'}</button>
                     </div>
                 </form>
             </div>
@@ -75,18 +54,17 @@ function InfraModal({ onClose, onSave }: { onClose: () => void; onSave: () => vo
 
 export default function InfraPage() {
     const [modal, setModal] = useState(false);
-    const { data: infra = [], isLoading } = useSWR<Infra[]>('/api/infrastructure', fetcher);
+    const { data: infra, isLoading, refresh } = useRealtimeTable<Infra>('/api/infrastructure', 'infrastructure');
     const online = infra.filter(i => i.status === 'Online').length;
 
     const handleDelete = async (id: string) => {
         if (!confirm('Remover este equipamento?')) return;
         await fetch(`/api/infrastructure/${id}`, { method: 'DELETE' });
-        mutate('/api/infrastructure');
     };
 
     return (
         <div>
-            {modal && <InfraModal onClose={() => setModal(false)} onSave={() => mutate('/api/infrastructure')} />}
+            {modal && <InfraModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Infraestrutura</h1>
@@ -94,7 +72,6 @@ export default function InfraPage() {
                 </div>
                 <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={16} /> Novo Equipamento</button>
             </div>
-
             <div className="card">
                 {isLoading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
@@ -110,7 +87,7 @@ export default function InfraPage() {
                                         <td style={{ fontWeight: 600 }}>{i.name}</td>
                                         <td><span className="badge badge-blue">{i.type}</span></td>
                                         <td><span className={`badge ${STATUS_MAP[i.status] || 'badge-blue'}`}>{i.status}</span></td>
-                                        <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{i.ip || '—'}</td>
+                                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>{i.ip || '—'}</td>
                                         <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{i.os || '—'}</td>
                                         <td style={{ fontSize: 13 }}>{i.cpu || '—'}</td>
                                         <td style={{ fontSize: 13 }}>{i.ram_gb ? `${i.ram_gb} GB` : '—'}</td>
