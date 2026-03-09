@@ -20,7 +20,16 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { data, error } = await supabase.from('documents')
-        .insert({ ...body, author_id: user.id, author_name: user.email })
+        .insert({
+            title: body.title,
+            content: body.content,
+            category: body.category,
+            file_url: body.file_url,
+            file_name: body.file_name,
+            file_size: body.file_size,
+            author_id: user.id,
+            author_name: user.email
+        })
         .select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

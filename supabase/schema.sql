@@ -76,6 +76,9 @@ CREATE TABLE IF NOT EXISTS public.documents (
   category TEXT NOT NULL DEFAULT 'Procedimento' CHECK (category IN ('Procedimento', 'Política', 'Manual', 'Relatório', 'Outro')),
   author_id UUID REFERENCES auth.users(id),
   author_name TEXT,
+  file_url TEXT,
+  file_name TEXT,
+  file_size INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
