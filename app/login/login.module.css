@@ -1,0 +1,150 @@
+.page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-base);
+    position: relative;
+    overflow: hidden;
+    padding: 20px;
+}
+
+.orb1 {
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(79, 142, 247, 0.12) 0%, transparent 70%);
+    top: -100px;
+    left: -100px;
+    pointer-events: none;
+}
+
+.orb2 {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.08) 0%, transparent 70%);
+    bottom: -80px;
+    right: -80px;
+    pointer-events: none;
+}
+
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.card.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.logo {
+    width: 56px;
+    height: 56px;
+    background: rgba(79, 142, 247, 0.1);
+    border: 1px solid rgba(79, 142, 247, 0.2);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 28px;
+}
+
+.error {
+    background: var(--red-mid);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--red);
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.inputWrap {
+    position: relative;
+}
+
+.icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.input {
+    padding-left: 38px !important;
+}
+
+.inputPadded {
+    padding-right: 40px !important;
+}
+
+.eye {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.eye:hover {
+    color: var(--text-primary);
+}
+
+.submit {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+    padding: 12px;
+    font-size: 15px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin {
+    animation: spin 0.7s linear infinite;
+}

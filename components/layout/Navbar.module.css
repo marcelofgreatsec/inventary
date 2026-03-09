@@ -1,0 +1,70 @@
+.navbar {
+    height: var(--navbar-h);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    backdrop-filter: blur(8px);
+}
+
+.title {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.iconBtn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+
+.iconBtn:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
+.badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    background: var(--red);
+    border-radius: 50%;
+    border: 1px solid var(--bg-surface);
+}
+
+.avatar {
+    width: 34px;
+    height: 34px;
+    background: var(--accent-mid);
+    border: 1px solid rgba(79, 142, 247, 0.25);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: default;
+}
