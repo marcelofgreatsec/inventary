@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Package, HardDrive, Shield, Server, AlertTriangle, CheckCircle, Clock, TrendingUp, DollarSign, Activity } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
