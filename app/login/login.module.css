@@ -7,39 +7,70 @@
     position: relative;
     overflow: hidden;
     padding: 20px;
+
+    background-image:
+        linear-gradient(rgba(0, 212, 170, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 170, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
 }
 
-.orb1 {
+/* Corner decorations */
+.page::before {
+    content: '';
     position: absolute;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(79, 142, 247, 0.12) 0%, transparent 70%);
-    top: -100px;
-    left: -100px;
+    top: 0;
+    left: 0;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(0, 212, 170, 0.06) 0%, transparent 70%);
     pointer-events: none;
 }
 
-.orb2 {
+.page::after {
+    content: '';
     position: absolute;
+    bottom: 0;
+    right: 0;
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, rgba(167, 139, 250, 0.08) 0%, transparent 70%);
-    bottom: -80px;
-    right: -80px;
+    background: radial-gradient(circle, rgba(54, 123, 240, 0.05) 0%, transparent 70%);
     pointer-events: none;
+}
+
+.terminalHeader {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.8;
 }
 
 .card {
     background: var(--bg-surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
+    border: 1px solid var(--border-mid);
+    border-radius: 10px;
     padding: 40px;
     width: 100%;
     max-width: 420px;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg), 0 0 80px rgba(0, 212, 170, 0.05);
     opacity: 0;
     transform: translateY(20px);
     transition: opacity 0.4s ease, transform 0.4s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 20px var(--accent);
 }
 
 .card.visible {
@@ -48,44 +79,61 @@
 }
 
 .logo {
-    width: 56px;
-    height: 56px;
-    background: rgba(79, 142, 247, 0.1);
-    border: 1px solid rgba(79, 142, 247, 0.2);
-    border-radius: 14px;
+    width: 50px;
+    height: 50px;
+    background: var(--accent-dim);
+    border: 1px solid var(--border-mid);
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 20px;
+    box-shadow: 0 0 20px var(--accent-glow), inset 0 0 20px rgba(0, 212, 170, 0.05);
 }
 
 .title {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
-    letter-spacing: -0.5px;
-    margin-bottom: 6px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    margin-bottom: 4px;
 }
 
 .subtitle {
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 11px;
     margin-bottom: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+}
+
+.subtitle::before {
+    content: '// ';
+    color: var(--accent);
+    opacity: 0.5;
 }
 
 .error {
     background: var(--red-mid);
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(255, 71, 87, 0.25);
     color: var(--red);
     padding: 10px 14px;
     border-radius: var(--radius);
-    font-size: 13px;
+    font-size: 12px;
     margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.error::before {
+    content: '! ';
 }
 
 .form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
 }
 
 .field {
@@ -100,7 +148,7 @@
 
 .icon {
     position: absolute;
-    left: 12px;
+    left: 11px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-muted);
@@ -108,7 +156,7 @@
 }
 
 .input {
-    padding-left: 38px !important;
+    padding-left: 36px !important;
 }
 
 .inputPadded {
@@ -117,7 +165,7 @@
 
 .eye {
     position: absolute;
-    right: 12px;
+    right: 10px;
     top: 50%;
     transform: translateY(-50%);
     background: none;
@@ -128,15 +176,18 @@
 }
 
 .eye:hover {
-    color: var(--text-primary);
+    color: var(--accent);
 }
 
 .submit {
     width: 100%;
     justify-content: center;
     margin-top: 8px;
-    padding: 12px;
-    font-size: 15px;
+    padding: 11px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 @keyframes spin {

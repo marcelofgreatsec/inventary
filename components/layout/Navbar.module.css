@@ -10,11 +10,30 @@
     top: 0;
     z-index: 30;
     backdrop-filter: blur(8px);
+    position: relative;
+}
+
+.navbar::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-dim) 30%, var(--accent-dim) 70%, transparent);
 }
 
 .title {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+}
+
+.title::before {
+    content: '$ ';
+    color: var(--accent);
+    font-weight: 400;
 }
 
 .actions {
@@ -25,11 +44,11 @@
 
 .iconBtn {
     position: relative;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     background: var(--bg-overlay);
-    border: 1px solid var(--border);
-    border-radius: 9px;
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -39,32 +58,36 @@
 }
 
 .iconBtn:hover {
-    border-color: var(--border-hover);
-    color: var(--text-primary);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .badge {
     position: absolute;
     top: 6px;
     right: 6px;
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     background: var(--red);
     border-radius: 50%;
     border: 1px solid var(--bg-surface);
+    box-shadow: 0 0 4px var(--red);
 }
 
 .avatar {
     width: 34px;
     height: 34px;
-    background: var(--accent-mid);
-    border: 1px solid rgba(79, 142, 247, 0.25);
-    border-radius: 9px;
+    background: var(--accent-dim);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
     color: var(--accent);
     cursor: default;
+    font-family: 'JetBrains Mono', monospace;
+    box-shadow: 0 0 8px var(--accent-glow);
 }
