@@ -50,11 +50,12 @@ export default function DocsPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('Remover este documento?')) return;
         await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+        refresh();
     };
 
     return (
         <div>
-            {modal && <DocModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
+            {modal && <DocModal onClose={() => setModal(false)} onSave={() => refresh()} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Documentações</h1>

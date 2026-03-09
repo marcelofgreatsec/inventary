@@ -71,11 +71,12 @@ export default function BackupsPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('Remover esta rotina?')) return;
         await fetch(`/api/backups/${id}`, { method: 'DELETE' });
+        refresh();
     };
 
     return (
         <div>
-            {modal && <BackupModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
+            {modal && <BackupModal onClose={() => setModal(false)} onSave={() => refresh()} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Gestão de Backups</h1>

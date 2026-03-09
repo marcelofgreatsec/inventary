@@ -60,11 +60,12 @@ export default function InfraPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('Remover este equipamento?')) return;
         await fetch(`/api/infrastructure/${id}`, { method: 'DELETE' });
+        refresh();
     };
 
     return (
         <div>
-            {modal && <InfraModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
+            {modal && <InfraModal onClose={() => setModal(false)} onSave={() => refresh()} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Infraestrutura</h1>

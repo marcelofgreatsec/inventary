@@ -65,11 +65,12 @@ export default function LicensesPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('Remover esta licença?')) return;
         await fetch(`/api/licenses/${id}`, { method: 'DELETE' });
+        refresh();
     };
 
     return (
         <div>
-            {modal && <LicenseModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
+            {modal && <LicenseModal onClose={() => setModal(false)} onSave={() => refresh()} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Licenças de Software</h1>

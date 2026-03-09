@@ -34,7 +34,7 @@ export default function Sidebar() {
         <aside className={styles.sidebar}>
             <div className={styles.brand}>
                 <div className={styles.brandIcon}>
-                    <Shield size={20} color="#4f8ef7" />
+                    <Shield size={20} color="var(--accent)" />
                 </div>
                 <div>
                     <div className={styles.brandName}>Inventary</div>

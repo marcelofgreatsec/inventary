@@ -76,11 +76,12 @@ export default function AssetsPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('Remover este ativo?')) return;
         await fetch(`/api/assets/${id}`, { method: 'DELETE' });
+        refresh();
     };
 
     return (
         <div>
-            {modal && <AssetModal onClose={() => setModal(false)} onSave={() => { setModal(false); refresh(); }} />}
+            {modal && <AssetModal onClose={() => setModal(false)} onSave={() => refresh()} />}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Inventário de Ativos</h1>
