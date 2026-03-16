@@ -46,7 +46,7 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
             cleanCost = cleanCost.replace(/\./g, '');
         }
         
-        await fetch(url, { 
+        const res = await fetch(url, { 
             method, 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ 
@@ -56,7 +56,15 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
                 renewal_date: form.renewal_date || null 
             }) 
         });
-        onSave(); onClose(); setSaving(false);
+
+        if (res.ok) {
+            onSave();
+            onClose();
+        } else {
+            const err = await res.json();
+            alert(`Erro ao salvar: ${err.error || 'Erro desconhecido'}`);
+        }
+        setSaving(false);
     };
 
     const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(p => ({ ...p, [k]: e.target.value }));
