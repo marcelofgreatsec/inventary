@@ -19,7 +19,10 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
     const body = await req.json();
-    const { data, error } = await supabase.from('licenses').insert(body).select().single();
+    const { name, vendor, type, status, seats, monthly_cost, renewal_date, key, login, password } = body;
+    const insertData = { name, vendor, type, status, seats, monthly_cost, renewal_date, key, login, password };
+    
+    const { data, error } = await supabase.from('licenses').insert(insertData).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     await supabase.from('audit_logs').insert({

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
-import { Plus, Trash2, Shield, Loader2, X, BarChart3, Search, Filter } from 'lucide-react';
+import { Plus, Trash2, Shield, Loader2, X, BarChart3, Search, Filter, Eye, EyeOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const STATUS_MAP: Record<string, string> = {
@@ -12,6 +12,7 @@ const STATUS_MAP: Record<string, string> = {
 interface License {
     id: string; name: string; vendor: string; type: string;
     status: string; seats: number; monthly_cost: number; renewal_date?: string;
+    login?: string; password?: string;
 }
 
 function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSave: () => void; license?: License }) {
@@ -23,9 +24,12 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
         seats: license.seats.toString(),
         monthly_cost: license.monthly_cost.toString(),
         renewal_date: license.renewal_date || '',
-        key: (license as any).key || ''
-    } : { name: '', vendor: '', type: 'Anual', status: 'Ativa', seats: '1', monthly_cost: '0', renewal_date: '', key: '' });
+        key: (license as any).key || '',
+        login: license.login || '',
+        password: license.password || ''
+    } : { name: '', vendor: '', type: 'Anual', status: 'Ativa', seats: '1', monthly_cost: '0', renewal_date: '', key: '', login: '', password: '' });
     const [saving, setSaving] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault(); setSaving(true);
@@ -95,6 +99,17 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
                         <div className="form-group"><label>Custo Mensal (R$)</label><input className="input" type="text" placeholder="Ex: 1.500,00" value={form.monthly_cost} onChange={f('monthly_cost')} /></div>
                     </div>
                     <div className="form-group"><label>Vencimento</label><input className="input" type="date" value={form.renewal_date} onChange={f('renewal_date')} /></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="form-group"><label>Login</label><input className="input" value={form.login} onChange={f('login')} placeholder="usuário ou email" /></div>
+                        <div className="form-group"><label>Senha</label>
+                            <div style={{ position: 'relative' }}>
+                                <input className="input" type={showPassword ? "text" : "password"} value={form.password} onChange={f('password')} placeholder="••••••••" style={{ paddingRight: 40 }} />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <div className="form-group"><label>Chave</label><input className="input" value={form.key} onChange={f('key')} placeholder="XXXXX-XXXXX-XXXXX" /></div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>

@@ -10,8 +10,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
     const body = await req.json();
-    const { name, vendor, type, status, seats, monthly_cost, renewal_date, key } = body;
-    const updateData = { name, vendor, type, status, seats, monthly_cost, renewal_date, key };
+    const { name, vendor, type, status, seats, monthly_cost, renewal_date, key, login, password } = body;
+    const updateData = { name, vendor, type, status, seats, monthly_cost, renewal_date, key, login, password };
     
     const { data, error } = await supabase.from('licenses').update(updateData).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

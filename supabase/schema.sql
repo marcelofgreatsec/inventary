@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS public.licenses (
   monthly_cost NUMERIC(10,2) DEFAULT 0,
   renewal_date DATE,
   key TEXT,
+  login TEXT,
+  password TEXT,
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
