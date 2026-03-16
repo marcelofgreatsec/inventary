@@ -32,27 +32,34 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
         const url = license ? `/api/licenses/${license.id}` : '/api/licenses';
         const method = license ? 'PATCH' : 'POST';
         let cleanCost = form.monthly_cost.trim();
-        if (cleanCost.includes(',') && cleanCost.includes('.')) {
-            // pt-BR: 1.500,00 -> 1500.00
-            cleanCost = cleanCost.replace(/\./g, '').replace(',', '.');
-        } else if (cleanCost.includes(',')) {
-            // pt-BR: 1500,00 -> 1500.00
-            cleanCost = cleanCost.replace(',', '.');
-        } else if (cleanCost.includes('.') && cleanCost.split('.').pop()?.length === 3) {
-            // Probable thousands separator: 1.500 -> 1500
-            // But we must be careful not to break decimals like 1.500 (which is 1.5)
-            // However, in a currency context, 3 digits after a dot usually means thousands in BR
-            // For now, let's just remove all dots if there's no comma, as per user's 1k report
-            cleanCost = cleanCost.replace(/\./g, '');
+        let clean = cleanCost.replace(/[^\d.,]/g, '');
+        const lastSepIndex = Math.max(clean.lastIndexOf('.'), clean.lastIndexOf(','));
+
+        if (lastSepIndex > -1) {
+            const charsAfterSep = clean.length - 1 - lastSepIndex;
+            if (charsAfterSep === 3 && clean.lastIndexOf('.') === lastSepIndex && clean.lastIndexOf(',') === -1) {
+                // e.g. "1.036" -> 1036
+                clean = clean.replace(/[.,]/g, '');
+            } else if (charsAfterSep === 3 && clean.lastIndexOf(',') === lastSepIndex && clean.lastIndexOf('.') === -1) {
+                // e.g. "1,036" -> 1036
+                clean = clean.replace(/[.,]/g, '');
+            } else {
+                // E.g. "1.036,27" or "1,036.27" or "1.036.27"
+                const decimalPart = clean.substring(lastSepIndex + 1);
+                const integerPart = clean.substring(0, lastSepIndex).replace(/[.,]/g, '');
+                clean = `${integerPart}.${decimalPart}`;
+            }
         }
         
+        const finalCost = parseFloat(clean) || 0;
+
         const res = await fetch(url, { 
             method, 
             headers: { 'Content-Type': 'application/json' }, 
             body: JSON.stringify({ 
                 ...form, 
                 seats: parseInt(form.seats), 
-                monthly_cost: parseFloat(cleanCost) || 0, 
+                monthly_cost: finalCost, 
                 renewal_date: form.renewal_date || null 
             }) 
         });
