@@ -150,3 +150,39 @@
         grid-template-columns: 1fr;
     }
 }
+
+.syncIcon {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.syncing {
+    animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.alertCard {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.05) 0%, transparent 100%);
+    border-left: 3px solid var(--red) !important;
+}
+
+.alertItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-soft);
+    margin-bottom: 8px;
+    transition: transform 0.2s;
+}
+
+.alertItem:hover {
+    transform: translateX(4px);
+    background: var(--bg-elevated);
+    border-color: var(--red-glow);
+}

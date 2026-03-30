@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
-import { Plus, Trash2, Shield, Loader2, X, BarChart3, Search, Filter, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, Shield, Loader2, X, BarChart3, Search, Filter, Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const STATUS_MAP: Record<string, string> = {
@@ -13,6 +13,20 @@ interface License {
     id: string; name: string; vendor: string; type: string;
     status: string; seats: number; monthly_cost: number; renewal_date?: string;
     login?: string; password?: string;
+}
+
+function CopyBtn({ text }: { text: string }) {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = () => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    return (
+        <button onClick={handleCopy} style={{ background: 'none', border: 'none', color: copied ? 'var(--green)' : 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', marginLeft: 6 }}>
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+        </button>
+    );
 }
 
 function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSave: () => void; license?: License }) {
@@ -30,9 +44,28 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
     } : { name: '', vendor: '', type: 'Anual', status: 'Ativa', seats: '1', monthly_cost: '0', renewal_date: '', key: '', login: '', password: '' });
     const [saving, setSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [saveError, setSaveError] = useState('');
+    const modalRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const focusable = Array.from(
+            modalRef.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') || []
+        );
+        focusable[0]?.focus();
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { onClose(); return; }
+            if (e.key !== 'Tab' || !focusable.length) return;
+            if (e.shiftKey && document.activeElement === focusable[0]) {
+                e.preventDefault(); focusable[focusable.length - 1]?.focus();
+            } else if (!e.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+                e.preventDefault(); focusable[0]?.focus();
+            }
+        };
+        document.addEventListener('keydown', handleKey);
+        return () => document.removeEventListener('keydown', handleKey);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault(); setSaving(true);
+        e.preventDefault(); setSaving(true); setSaveError('');
         const url = license ? `/api/licenses/${license.id}` : '/api/licenses';
         const method = license ? 'PATCH' : 'POST';
         let cleanCost = form.monthly_cost.trim();
@@ -73,7 +106,7 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
             onClose();
         } else {
             const err = await res.json();
-            alert(`Erro ao salvar: ${err.error || 'Erro desconhecido'}`);
+            setSaveError(err.error || 'Erro desconhecido ao salvar. Tente novamente.');
         }
         setSaving(false);
     };
@@ -82,10 +115,10 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
 
     return (
         <div className="modal-overlay">
-            <div className="modal">
+            <div className="modal" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="license-modal-title">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <h2 className="modal-title" style={{ marginBottom: 0 }}>{license ? 'Editar Licença' : 'Nova Licença'}</h2>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+                    <h2 id="license-modal-title" className="modal-title" style={{ marginBottom: 0 }}>{license ? 'Editar Licença' : 'Nova Licença'}</h2>
+                    <button onClick={onClose} aria-label="Fechar modal" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="form-group"><label>Software *</label><input className="input" value={form.name} onChange={f('name')} required placeholder="Microsoft 365 Business" /></div>
@@ -95,7 +128,7 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
                         <div className="form-group"><label>Status</label><select className="select" value={form.status} onChange={f('status')}>{['Ativa', 'Expirada', 'A vencer'].map(s => <option key={s}>{s}</option>)}</select></div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="form-group"><label>Seats</label><input className="input" type="number" min="1" value={form.seats} onChange={f('seats')} /></div>
+                        <div className="form-group"><label>Usuários</label><input className="input" type="number" min="1" value={form.seats} onChange={f('seats')} /></div>
                         <div className="form-group"><label>Custo Mensal (R$)</label><input className="input" type="text" placeholder="Ex: 1.500,00" value={form.monthly_cost} onChange={f('monthly_cost')} /></div>
                     </div>
                     <div className="form-group"><label>Vencimento</label><input className="input" type="date" value={form.renewal_date} onChange={f('renewal_date')} /></div>
@@ -103,7 +136,7 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
                         <div className="form-group"><label>Login</label><input className="input" value={form.login} onChange={f('login')} placeholder="usuário ou email" /></div>
                         <div className="form-group"><label>Senha</label>
                             <div style={{ position: 'relative' }}>
-                                <input className="input" type={showPassword ? "text" : "password"} value={form.password} onChange={f('password')} placeholder="••••••••" style={{ paddingRight: 40 }} />
+                                <input className="input" type={showPassword ? "text" : "password"} value={form.password} onChange={f('password')} placeholder="••••••••" autoComplete="off" style={{ paddingRight: 40 }} />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
@@ -111,6 +144,11 @@ function LicenseModal({ onClose, onSave, license }: { onClose: () => void; onSav
                         </div>
                     </div>
                     <div className="form-group"><label>Chave</label><input className="input" value={form.key} onChange={f('key')} placeholder="XXXXX-XXXXX-XXXXX" /></div>
+                    {saveError && (
+                        <div style={{ padding: '10px 12px', background: 'color-mix(in srgb, var(--red) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 6, fontSize: 13, color: 'var(--red)', marginBottom: 12 }}>
+                            {saveError}
+                        </div>
+                    )}
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
                         <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : (license ? 'Atualizar Licença' : 'Salvar Licença')}</button>
@@ -142,12 +180,12 @@ export default function LicensesPage() {
 
     const COLORS = ['#00f5ff', '#7000ff', '#ff007a', '#00ff9f', '#ffea00'];
 
-    const filteredLicenses = licenses.filter(l => {
-        const matchesSearch = l.name.toLowerCase().includes(search.toLowerCase()) || 
+    const filteredLicenses = useMemo(() => licenses.filter(l => {
+        const matchesSearch = l.name.toLowerCase().includes(search.toLowerCase()) ||
                              l.vendor.toLowerCase().includes(search.toLowerCase());
         const matchesStatus = statusFilter === 'Todos' || l.status === statusFilter;
         return matchesSearch && matchesStatus;
-    });
+    }), [licenses, search, statusFilter]);
     const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
     const fmtCost = (n: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
     const totalCost = licenses.reduce((s, l) => s + (l.monthly_cost || 0), 0);
@@ -215,10 +253,10 @@ export default function LicensesPage() {
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                                 <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$ ${value}`} />
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-                                    itemStyle={{ color: '#00f5ff' }}
-                                    labelStyle={{ color: 'white', marginBottom: 4 }}
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
+                                    itemStyle={{ color: 'var(--accent)' }}
+                                    labelStyle={{ color: 'var(--text-primary)', marginBottom: 4 }}
                                     formatter={(value: number) => [fmtCost(value), 'Custo']}
                                 />
                                 <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
@@ -245,11 +283,24 @@ export default function LicensesPage() {
                 {isLoading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
                 ) : filteredLicenses.length === 0 ? (
-                    <div className="empty"><Shield size={40} /><p>Nenhuma licença encontrada.</p></div>
+                    <div className="empty">
+                        <Shield size={40} />
+                        {licenses.length === 0 ? (
+                            <>
+                                <p>Nenhuma licença cadastrada.</p>
+                                <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => { setEditingLicense(undefined); setModal(true); }}>Adicionar primeira licença</button>
+                            </>
+                        ) : (
+                            <>
+                                <p>Nenhum resultado para os filtros aplicados.</p>
+                                <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={() => { setSearch(''); setStatusFilter('Todos'); }}>Limpar filtros</button>
+                            </>
+                        )}
+                    </div>
                 ) : (
                     <div className="table-wrap">
                         <table>
-                            <thead><tr><th>Software</th><th>Fornecedor</th><th>Tipo</th><th>Status</th><th>Seats</th><th>Custo/Mês</th><th>Vencimento</th><th></th></tr></thead>
+                            <thead><tr><th>Software</th><th>Fornecedor</th><th>Tipo</th><th>Status</th><th>Login</th><th>Usuários</th><th>Custo/Mês</th><th>Vencimento</th><th></th></tr></thead>
                             <tbody>
                                 {filteredLicenses.map(l => (
                                     <tr key={l.id}>
@@ -257,6 +308,14 @@ export default function LicensesPage() {
                                         <td style={{ color: 'var(--text-secondary)' }}>{l.vendor}</td>
                                         <td><span className="badge badge-purple">{l.type}</span></td>
                                         <td><span className={`badge ${STATUS_MAP[l.status] || 'badge-blue'}`}>{l.status}</span></td>
+                                        <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                            {l.login ? (
+                                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                    {l.login.slice(0, 3)}{'*'.repeat(Math.max(0, l.login.length - 3))}
+                                                    <CopyBtn text={l.login} />
+                                                </div>
+                                            ) : '—'}
+                                        </td>
                                         <td style={{ textAlign: 'center' }}>{l.seats}</td>
                                         <td style={{ fontWeight: 600, color: 'var(--green)' }}>{fmtCost(l.monthly_cost)}</td>
                                         <td style={{ fontSize: 13 }}>{fmtDate(l.renewal_date)}</td>

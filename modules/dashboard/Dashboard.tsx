@@ -26,14 +26,19 @@ const STATUS_COLORS = ['#00d4aa', '#f0a500', '#ff4757'];
 export default function Dashboard() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [logs, setLogs] = useState<Log[]>([]);
+    const [alerts, setAlerts] = useState<any[]>([]);
     const [costData, setCostData] = useState<CostData[]>([]);
     const [user, setUser] = useState<string>('');
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const fmt = (n: number) =>
         new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 
     const load = useCallback(async () => {
+        setError(false);
+        setIsSyncing(true);
         try {
             const [assetsRes, backupsRes, licensesRes, infraRes, logsRes] = await Promise.all([
                 fetch('/api/assets'),
@@ -43,7 +48,7 @@ export default function Dashboard() {
                 fetch('/api/admin/logs'),
             ]);
 
-            if (!assetsRes.ok) { setLoading(false); return; }
+            if (!assetsRes.ok) { setLoading(false); setIsSyncing(false); return; }
 
             const [assetsData, backupsData, licensesData, infraData, logsData] = await Promise.all([
                 assetsRes.json(), backupsRes.json(), licensesRes.json(), infraRes.json(), logsRes.json()
@@ -61,6 +66,22 @@ export default function Dashboard() {
                 infraOnline: infraData.filter((i: any) => i.status === 'Online').length,
             });
 
+            // Alerts - Expiration in next 30 days
+            const today = new Date();
+            const next30 = new Date();
+            next30.setDate(today.getDate() + 30);
+            
+            const expiring = licensesData.filter((l: any) => {
+                if (!l.renewal_date) return false;
+                const d = new Date(l.renewal_date);
+                return d > today && d < next30;
+            }).map((l: any) => ({
+                id: l.id,
+                name: l.name,
+                days: Math.ceil((new Date(l.renewal_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            }));
+            setAlerts(expiring);
+
             // Group costs by vendor
             const costs = licensesData.reduce((acc: any, curr: any) => {
                 acc[curr.vendor] = (acc[curr.vendor] || 0) + (curr.monthly_cost || 0);
@@ -69,8 +90,9 @@ export default function Dashboard() {
             setCostData(Object.entries(costs).map(([name, value]) => ({ name, value: value as number })));
 
             setLogs(Array.isArray(logsData) ? logsData.slice(0, 6) : []);
-        } catch { /* silent fail */ }
+        } catch { setError(true); }
         setLoading(false);
+        setTimeout(() => setIsSyncing(false), 500);
     }, []);
 
     useEffect(() => {
@@ -101,6 +123,13 @@ export default function Dashboard() {
 
     return (
         <div>
+            {error && (
+                <div style={{ background: 'color-mix(in srgb, var(--red) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <AlertTriangle size={18} color="var(--red)" />
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--text-primary)' }}>Falha ao carregar os dados do painel.</span>
+                    <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={load}>Tentar novamente</button>
+                </div>
+            )}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Relatório Executivo</h1>
@@ -109,7 +138,15 @@ export default function Dashboard() {
                         {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                 </div>
-                <button className="btn btn-primary" onClick={load} style={{ fontSize: 12 }}><Activity size={14} /> Sincronizar Dados</button>
+                <button 
+                    className="btn btn-primary" 
+                    onClick={load} 
+                    disabled={isSyncing}
+                    style={{ fontSize: 12, minWidth: 140 }}
+                >
+                    <Activity size={14} className={isSyncing ? styles.syncing : ''} /> 
+                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Dados'}
+                </button>
             </div>
 
             <div className={styles.kpiGrid}>
@@ -142,7 +179,7 @@ export default function Dashboard() {
                     <div className={styles.chartContainer}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={costData} layout="vertical">
-                                <XAxis type="number" hide />
+                                <XAxis type="number" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} tickFormatter={(v: number) => fmt(v)} />
                                 <YAxis dataKey="name" type="category" width={100} tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} />
                                 <Tooltip
                                     contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)', borderRadius: '4px' }}
@@ -182,25 +219,35 @@ export default function Dashboard() {
             </div>
 
             <div className={styles.mainGrid} style={{ marginTop: 16 }}>
-                <div className={`card ${styles.infoCard}`}>
+                <div className={`card ${styles.infoCard} ${alerts.length > 0 ? styles.alertCard : ''}`}>
                     <div className={styles.cardHeader}>
-                        <CheckCircle size={18} color="var(--green)" />
-                        <span className={styles.cardTitle}>Resumo de Conformidade</span>
+                        <AlertTriangle size={18} color={alerts.length > 0 ? 'var(--red)' : 'var(--amber)'} />
+                        <span className={styles.cardTitle}>Alertas de Vencimento</span>
                     </div>
-                    <div className={styles.complianceItems}>
-                        {[
-                            { label: 'Disponibilidade de Ativos', value: stats ? `${((stats.assetsOk / stats.assets) * 100 || 0).toFixed(1)}%` : '0%', ok: (stats?.assetsOk ?? 0) === (stats?.assets ?? 0) },
-                            { label: 'Integridade de Backups', value: stats ? `${stats.backupsFail > 0 ? 'ALERTA' : 'INTEGRO'}` : '-', ok: (stats?.backupsFail ?? 1) === 0 },
-                            { label: 'Consicionamento de Licenças', value: stats?.licensesCost ? fmt(stats.licensesCost) : 'R$ 0,00', ok: true },
-                            { label: 'SLA de Infraestrutura', value: stats ? `${((stats.infraOnline / stats.infra) * 100 || 0).toFixed(1)}%` : '0%', ok: (stats?.infraOnline ?? 0) === (stats?.infra ?? 0) },
-                        ].map(item => (
-                            <div key={item.label} className={styles.complianceRow}>
-                                {item.ok ? <CheckCircle size={15} color="var(--green)" /> : <AlertTriangle size={15} color="var(--amber)" />}
-                                <span style={{ flex: 1 }}>{item.label}</span>
-                                <span style={{ fontWeight: 600, color: item.ok ? 'var(--accent)' : 'var(--amber)' }}>{item.value}</span>
-                            </div>
-                        ))}
-                    </div>
+                    {alerts.length === 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60%', color: 'var(--text-muted)' }}>
+                            <CheckCircle size={24} style={{ marginBottom: 8, opacity: 0.5 }} />
+                            <p style={{ fontSize: 13 }}>Tudo em dia para os próximos 30 dias.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {alerts.slice(0, 3).map(a => (
+                                <div key={a.id} className={styles.alertItem}>
+                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red)' }} />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Vence em {a.days} dias</div>
+                                    </div>
+                                    <AlertTriangle size={14} color="var(--red)" />
+                                </div>
+                            ))}
+                            {alerts.length > 3 && (
+                                <a href="/licenses" style={{ fontSize: 11, color: 'var(--accent)', textAlign: 'center', marginTop: 4, display: 'block', textDecoration: 'none' }}>
+                                    + {alerts.length - 3} outros alertas — ver todos
+                                </a>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className={`card ${styles.infoCard}`}>
@@ -209,14 +256,34 @@ export default function Dashboard() {
                         <span className={styles.cardTitle}>Últimas Movimentações</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {logs.slice(0, 4).map(l => (
+                        {logs.slice(0, 6).map(l => (
                             <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)' }} />
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 500 }}>{l.action} {l.table_name}</div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{l.user_email?.split('@')[0]} • {new Date(l.created_at).toLocaleTimeString('pt-BR')}</div>
+                                <div style={{ 
+                                    width: 32, 
+                                    height: 32, 
+                                    borderRadius: 6, 
+                                    background: 'var(--bg-overlay)', 
+                                    border: '1px solid var(--border)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: l.action === 'CREATE' ? 'var(--green)' : l.action === 'DELETE' ? 'var(--red)' : 'var(--amber)'
+                                }}>
+                                    <Activity size={16} style={{ margin: 'auto' }} />
                                 </div>
-                                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{new Date(l.created_at).toLocaleDateString()}</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 500 }}>
+                                        <span style={{ color: l.action === 'CREATE' ? 'var(--green)' : l.action === 'DELETE' ? 'var(--red)' : 'var(--amber)' }}>
+                                            {l.action}
+                                        </span> {l.table_name}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                                        {l.user_email?.split('@')[0]} • {new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                </div>
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                    {new Date(l.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                </span>
                             </div>
                         ))}
                     </div>
