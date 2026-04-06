@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Bell } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import styles from './Navbar.module.css';
 
 const titles: Record<string, string> = {
@@ -19,9 +19,16 @@ export default function Navbar({ userEmail }: { userEmail?: string }) {
     const title = titles[pathname] ?? 'Sistema';
     const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : '??';
 
+    const toggleSidebar = () => {
+        document.dispatchEvent(new CustomEvent('toggle-sidebar'));
+    };
+
     return (
         <header className={styles.navbar}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+                <button className={styles.hamburger} onClick={toggleSidebar} aria-label="Abrir menu de navegação">
+                    <Menu size={18} />
+                </button>
                 <h1 className={styles.title}>{title}</h1>
             </div>
             <div className={styles.actions}>

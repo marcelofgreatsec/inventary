@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { Plus, Trash2, Package, Loader2, X } from 'lucide-react';
 
@@ -13,9 +13,61 @@ interface Asset {
     ip?: string; location?: string; serial?: string;
 }
 
+function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const focusable = el.querySelectorAll<HTMLElement>('button, [href], input, [tabindex]:not([tabindex="-1"])');
+        focusable[0]?.focus();
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { onCancel(); return; }
+            if (e.key !== 'Tab') return;
+            const first = focusable[0]; const last = focusable[focusable.length - 1];
+            if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+                e.preventDefault();
+                (e.shiftKey ? last : first).focus();
+            }
+        };
+        el.addEventListener('keydown', handler);
+        return () => el.removeEventListener('keydown', handler);
+    }, []);
+    return (
+        <div className="modal-overlay">
+            <div className="modal" ref={ref} role="alertdialog" aria-modal="true" aria-labelledby="confirm-asset-title" style={{ maxWidth: 400 }}>
+                <h2 id="confirm-asset-title" className="modal-title">Confirmar remoção</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{message}</p>
+                <div className="modal-footer">
+                    <button className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
+                    <button className="btn btn-danger" onClick={onConfirm}>Remover</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function AssetModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
     const [form, setForm] = useState({ name: '', type: 'Servidor', status: 'Ativo', ip: '', location: '', serial: '' });
     const [saving, setSaving] = useState(false);
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = modalRef.current;
+        if (!el) return;
+        const focusable = el.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        focusable[0]?.focus();
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { onClose(); return; }
+            if (e.key !== 'Tab') return;
+            const first = focusable[0]; const last = focusable[focusable.length - 1];
+            if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+                e.preventDefault();
+                (e.shiftKey ? last : first).focus();
+            }
+        };
+        el.addEventListener('keydown', handler);
+        return () => el.removeEventListener('keydown', handler);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,10 +83,10 @@ function AssetModal({ onClose, onSave }: { onClose: () => void; onSave: () => vo
 
     return (
         <div className="modal-overlay">
-            <div className="modal">
+            <div className="modal" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="asset-modal-title">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <h2 className="modal-title" style={{ marginBottom: 0 }}>Novo Ativo</h2>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+                    <h2 id="asset-modal-title" className="modal-title" style={{ marginBottom: 0 }}>Novo Ativo</h2>
+                    <button onClick={onClose} aria-label="Fechar modal" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="form-group"><label>Nome *</label><input className="input" value={form.name} onChange={field('name')} required placeholder="SRV-PRINCIPAL-01" /></div>
@@ -71,17 +123,26 @@ function AssetModal({ onClose, onSave }: { onClose: () => void; onSave: () => vo
 
 export default function AssetsPage() {
     const [modal, setModal] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<Asset | null>(null);
     const { data: assets, isLoading, refresh } = useRealtimeTable<Asset>('/api/assets', 'assets');
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Remover este ativo?')) return;
-        await fetch(`/api/assets/${id}`, { method: 'DELETE' });
+    const confirmDeleteAction = async () => {
+        if (!confirmDelete) return;
+        await fetch(`/api/assets/${confirmDelete.id}`, { method: 'DELETE' });
+        setConfirmDelete(null);
         refresh();
     };
 
     return (
         <div>
             {modal && <AssetModal onClose={() => setModal(false)} onSave={() => refresh()} />}
+            {confirmDelete && (
+                <ConfirmModal
+                    message={`Remover o ativo "${confirmDelete.name}"? Esta ação não pode ser desfeita.`}
+                    onConfirm={confirmDeleteAction}
+                    onCancel={() => setConfirmDelete(null)}
+                />
+            )}
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Inventário de Ativos</h1>
@@ -113,7 +174,7 @@ export default function AssetsPage() {
                                         <td>{a.location || '—'}</td>
                                         <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>{a.serial || '—'}</td>
                                         <td>
-                                            <button onClick={() => handleDelete(a.id)} className="btn btn-danger" style={{ padding: '5px 10px' }}>
+                                            <button onClick={() => setConfirmDelete(a)} aria-label={`Remover ${a.name}`} className="btn btn-danger" style={{ padding: '5px 10px' }}>
                                                 <Trash2 size={14} />
                                             </button>
                                         </td>

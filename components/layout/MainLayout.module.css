@@ -16,3 +16,13 @@
     padding: 28px;
     overflow-x: hidden;
 }
+
+@media (max-width: 768px) {
+    .main {
+        margin-left: 0;
+    }
+
+    .content {
+        padding: 16px;
+    }
+}

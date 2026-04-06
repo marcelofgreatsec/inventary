@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
     LayoutDashboard, Package, HardDrive, FileText,
-    Shield, Server, Settings, LogOut, ChevronRight
+    Shield, Server, Settings, LogOut, ChevronRight, X
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
@@ -23,6 +24,17 @@ export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
+    const [mobileOpen, setMobileOpen] = useState(false);
+
+    useEffect(() => {
+        const handler = () => setMobileOpen(o => !o);
+        document.addEventListener('toggle-sidebar', handler);
+        return () => document.removeEventListener('toggle-sidebar', handler);
+    }, []);
+
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -31,7 +43,9 @@ export default function Sidebar() {
     };
 
     return (
-        <aside className={styles.sidebar}>
+        <>
+        {mobileOpen && <div className={styles.overlay} onClick={() => setMobileOpen(false)} aria-hidden="true" />}
+        <aside className={`${styles.sidebar} ${mobileOpen ? styles.mobileOpen : ''}`}>
             <div className={styles.brand}>
                 <div className={styles.brandIcon}>
                     <Shield size={20} color="var(--accent)" />
@@ -40,6 +54,13 @@ export default function Sidebar() {
                     <div className={styles.brandName}>Inventary</div>
                     <div className={styles.brandSub}>Gestão de TI</div>
                 </div>
+                <button
+                    className={styles.closeBtn}
+                    onClick={() => setMobileOpen(false)}
+                    aria-label="Fechar menu"
+                >
+                    <X size={16} />
+                </button>
             </div>
 
             <nav className={styles.nav}>
@@ -63,5 +84,6 @@ export default function Sidebar() {
                 </button>
             </div>
         </aside>
+        </>
     );
 }

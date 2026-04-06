@@ -9,10 +9,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
     return (
         <div className={styles.layout}>
+            <a href="#main-content" className="skip-link">Pular para o conteúdo</a>
             <Sidebar />
             <div className={styles.main}>
                 <Navbar userEmail={user?.email} />
-                <main className={styles.content}>{children}</main>
+                <main id="main-content" role="main" className={styles.content}>{children}</main>
             </div>
         </div>
     );

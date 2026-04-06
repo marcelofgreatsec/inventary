@@ -10,7 +10,36 @@
     top: 0;
     z-index: 30;
     backdrop-filter: blur(8px);
-    position: relative;
+}
+
+.hamburger {
+    display: none;
+    width: 34px;
+    height: 34px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    margin-right: 12px;
+}
+
+.hamburger:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        padding: 0 16px;
+    }
+
+    .hamburger {
+        display: flex;
+    }
 }
 
 .navbar::after {
