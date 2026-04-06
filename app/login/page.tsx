@@ -7,13 +7,13 @@ import { ShieldCheck, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import styles from './login.module.css';
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('');
+    const [email,    setEmail]    = useState('');
     const [password, setPassword] = useState('');
     const [showPass, setShowPass] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [mounted, setMounted] = useState(false);
-    const router = useRouter();
+    const [loading,  setLoading]  = useState(false);
+    const [error,    setError]    = useState('');
+    const [mounted,  setMounted]  = useState(false);
+    const router   = useRouter();
     const supabase = createClient();
 
     useEffect(() => { setMounted(true); }, []);
@@ -34,15 +34,24 @@ export default function LoginPage() {
 
     return (
         <div className={styles.page}>
+            {/* Ambient orbs */}
+            <div className={`${styles.orb} ${styles.orb1}`} />
+            <div className={`${styles.orb} ${styles.orb2}`} />
+            <div className={`${styles.orb} ${styles.orb3}`} />
+
+            {/* Terminal header */}
             <div className={styles.terminalHeader}>
-                <div>inventary-sec v2.0.1</div>
-                <div>Secure IT Governance Platform</div>
-                <div style={{ color: 'var(--accent)', opacity: 0.6 }}>Waiting for authentication...</div>
+                <span className={styles.cmdLine}>inventary-sec --version 2.0.1</span>
+                <span className={styles.statusLine}>Secure IT Governance Platform</span>
+                <span style={{ color: 'var(--accent)', opacity: 0.5, fontSize: 11 }}>
+                    Waiting for authentication...
+                </span>
             </div>
 
+            {/* Login card */}
             <div className={`${styles.card} ${mounted ? styles.visible : ''}`}>
                 <div className={styles.logo}>
-                    <ShieldCheck size={28} color="var(--accent)" />
+                    <ShieldCheck size={26} color="var(--accent)" />
                 </div>
                 <h1 className={styles.title}>Inventary</h1>
                 <p className={styles.subtitle}>Secure IT Governance System</p>
@@ -62,6 +71,7 @@ export default function LoginPage() {
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 required
+                                autoComplete="email"
                             />
                         </div>
                     </div>
@@ -78,22 +88,42 @@ export default function LoginPage() {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
+                                autoComplete="current-password"
                             />
                             <button
                                 type="button"
                                 className={styles.eye}
                                 onClick={() => setShowPass(!showPass)}
                                 tabIndex={-1}
+                                aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
                             >
-                                {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                                {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                             </button>
                         </div>
                     </div>
 
-                    <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={loading}>
-                        {loading ? <Loader2 size={15} className={styles.spin} /> : 'authenticate --system'}
+                    <button
+                        type="submit"
+                        className={`btn btn-primary ${styles.submit}`}
+                        disabled={loading}
+                    >
+                        {loading
+                            ? <Loader2 size={16} className={styles.spin} />
+                            : 'authenticate --system'
+                        }
                     </button>
                 </form>
+            </div>
+
+            {/* Footer status */}
+            <div className={styles.terminalFooter}>
+                <span>
+                    <span className={styles.footerDot} />
+                    FGREAT © {new Date().getFullYear()}
+                </span>
+                <span style={{ fontFamily: 'JetBrains Mono', fontSize: 10 }}>
+                    TLS 1.3 · AES-256 · OAuth2
+                </span>
             </div>
         </div>
     );
