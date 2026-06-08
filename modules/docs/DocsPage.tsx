@@ -549,6 +549,12 @@ export default function DocsPage() {
     const [currentFolder, setCurrentFolder] = useState<string | null>(null);
     const [unlocked,      setUnlocked]      = useState<Set<string>>(new Set());
 
+    const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        setSelectedDocIds(new Set());
+    }, [currentFolder]);
+
     // drag state
     const [draggingDocId,   setDraggingDocId]   = useState<string | null>(null);
     const [dragOverTarget,  setDragOverTarget]   = useState<string | null>(null); // folder id or '__root__'
@@ -602,6 +608,47 @@ export default function DocsPage() {
         if (!confirm(`Deseja realmente excluir a pasta "${folder.name}"? Os documentos contidos nela voltarão para a Raiz.`)) return;
         await fetch(`/api/folders/${folder.id}`, { method: 'DELETE' });
         refreshFolders();
+        refreshDocs();
+    };
+
+    const toggleSelectDoc = (id: string) => {
+        setSelectedDocIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const isAllSelected = filteredDocs.length > 0 && filteredDocs.every(d => selectedDocIds.has(d.id));
+
+    const toggleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedDocIds(prev => {
+                const next = new Set(prev);
+                filteredDocs.forEach(d => next.delete(d.id));
+                return next;
+            });
+        } else {
+            setSelectedDocIds(prev => {
+                const next = new Set(prev);
+                filteredDocs.forEach(d => next.add(d.id));
+                return next;
+            });
+        }
+    };
+
+    const handleDeleteSelected = async () => {
+        if (selectedDocIds.size === 0) return;
+        if (!confirm(`Deseja realmente excluir os ${selectedDocIds.size} documentos selecionados?`)) return;
+        
+        await Promise.all(
+            Array.from(selectedDocIds).map(id => fetch(`/api/documents/${id}`, { method: 'DELETE' }))
+        );
+        setSelectedDocIds(new Set());
         refreshDocs();
     };
 
@@ -728,6 +775,56 @@ export default function DocsPage() {
                 </div>
             </div>
 
+            {/* Bulk Selection Actions */}
+            {filteredDocs.length > 0 && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 10,
+                    marginBottom: 16,
+                    animation: 'fadeIn 0.2s ease-out'
+                }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, userSelect: 'none', color: 'var(--text-secondary)' }}>
+                        <input
+                            type="checkbox"
+                            checked={isAllSelected}
+                            onChange={toggleSelectAll}
+                            style={{ cursor: 'pointer', width: 14, height: 14, accentColor: 'var(--accent)' }}
+                        />
+                        Selecionar todos os documentos nesta pasta ({filteredDocs.length})
+                    </label>
+
+                    {selectedDocIds.size > 0 && (
+                        <button
+                            className="btn"
+                            onClick={handleDeleteSelected}
+                            style={{
+                                background: 'rgba(244, 63, 94, 0.15)',
+                                color: 'var(--red)',
+                                border: '1px solid rgba(244, 63, 94, 0.25)',
+                                height: 34,
+                                padding: '0 14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.25)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.15)'; }}
+                        >
+                            <Trash2 size={13} />
+                            Excluir Selecionados ({selectedDocIds.size})
+                        </button>
+                    )}
+                </div>
+            )}
+
             {/* Grid for Folders and Files */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                 {/* Back navigation — também é drop zone para pasta pai */}
@@ -831,42 +928,60 @@ export default function DocsPage() {
                         onMouseEnter={e => { if (draggingDocId !== d.id) e.currentTarget.style.borderColor = 'var(--accent)'; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
                     >
-                        <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0, position: 'relative' }}>
-                                    <FileText size={16} />
-                                    <GripVertical size={10} style={{ position: 'absolute', top: -6, right: -6, color: 'var(--text-muted)', opacity: 0.6 }} />
-                                </div>
-                                <div style={{ maxWidth: 160 }}>
-                                    <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.title}</div>
-                                    {d.responsavel && (
-                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            <User size={10} /> {d.responsavel}
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'start', width: '100%' }}>
+                            <input
+                                type="checkbox"
+                                checked={selectedDocIds.has(d.id)}
+                                onChange={() => toggleSelectDoc(d.id)}
+                                onClick={e => e.stopPropagation()}
+                                style={{
+                                    cursor: 'pointer',
+                                    width: 15,
+                                    height: 15,
+                                    marginTop: 10,
+                                    accentColor: 'var(--accent)',
+                                    flexShrink: 0
+                                }}
+                            />
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, overflow: 'hidden' }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0, position: 'relative' }}>
+                                            <FileText size={16} />
+                                            <GripVertical size={10} style={{ position: 'absolute', top: -6, right: -6, color: 'var(--text-muted)', opacity: 0.6 }} />
                                         </div>
-                                    )}
-                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        {d.data_revisao
-                                            ? <><Calendar size={9} /> Revisão: {new Date(d.data_revisao + 'T00:00:00').toLocaleDateString('pt-BR')}</>
-                                            : new Date(d.created_at).toLocaleDateString('pt-BR')
-                                        }
+                                        <div style={{ overflow: 'hidden' }}>
+                                            <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={d.title}>{d.title}</div>
+                                            {d.responsavel && (
+                                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <User size={10} /> {d.responsavel}
+                                                </div>
+                                            )}
+                                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                {d.data_revisao
+                                                    ? <><Calendar size={9} /> Revisão: {new Date(d.data_revisao + 'T00:00:00').toLocaleDateString('pt-BR')}</>
+                                                    : new Date(d.created_at).toLocaleDateString('pt-BR')
+                                                }
+                                            </div>
+                                        </div>
                                     </div>
+                                    <span className={`badge ${CAT_MAP[d.category] || 'badge-blue'}`} style={{ fontSize: 9, flexShrink: 0 }}>{d.category}</span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)', minHeight: 20 }}>
+                                    {d.file_name && <Paperclip size={10} />}
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.file_name}>{d.file_name || 'Apenas texto'}</span>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 40px', gap: 8, marginTop: 4 }}>
+                                    <button className="btn btn-primary" onClick={() => setViewerDoc(d)} style={{ gap: 8, fontSize: 12, height: 36 }}>
+                                        <Eye size={14} /> Visualizar
+                                    </button>
+                                    <button className="btn btn-ghost" onClick={() => handleDeleteDoc(d.id)} style={{ padding: 0, height: 36, color: 'var(--red)' }}>
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
                             </div>
-                            <span className={`badge ${CAT_MAP[d.category] || 'badge-blue'}`} style={{ fontSize: 9 }}>{d.category}</span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)', minHeight: 20 }}>
-                            {d.file_name && <Paperclip size={10} />}
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.file_name || 'Apenas texto'}</span>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 40px', gap: 8, marginTop: 4 }}>
-                            <button className="btn btn-primary" onClick={() => setViewerDoc(d)} style={{ gap: 8, fontSize: 12, height: 36 }}>
-                                <Eye size={14} /> Visualizar
-                            </button>
-                            <button className="btn btn-ghost" onClick={() => handleDeleteDoc(d.id)} style={{ padding: 0, height: 36, color: 'var(--red)' }}>
-                                <Trash2 size={14} />
-                            </button>
                         </div>
                     </div>
                 ))}
