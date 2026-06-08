@@ -255,7 +255,7 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
     const [category, setCategory] = useState('Outro');
     const [responsavel, setResponsavel] = useState('');
     const [saving, setSaving] = useState(false);
-    const [progress, setProgress] = useState<{ name: string; status: 'pending' | 'uploading' | 'success' | 'error' }[]>([]);
+    const [progress, setProgress] = useState<{ name: string; status: 'pending' | 'uploading' | 'success' | 'error'; errorMsg?: string }[]>([]);
     const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
@@ -351,7 +351,7 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
         setSaving(true);
 
         // Map initial progress
-        const currentProgress = files.map(f => ({ name: f.name, status: 'pending' as const }));
+        const currentProgress = files.map(f => ({ name: f.name, status: 'pending' as const, errorMsg: undefined }));
         setProgress(currentProgress);
 
         for (let i = 0; i < files.length; i++) {
@@ -386,12 +386,16 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                     })
                 });
 
-                if (!res.ok) throw new Error('Falha ao salvar informações do documento');
+                if (!res.ok) {
+                    const errorJson = await res.json().catch(() => ({}));
+                    throw new Error(errorJson.error || 'Falha ao salvar no banco de dados');
+                }
 
                 currentProgress[i].status = 'success';
-            } catch (err) {
+            } catch (err: any) {
                 console.error(err);
                 currentProgress[i].status = 'error';
+                currentProgress[i].errorMsg = err.message || 'Erro inesperado';
             }
             setProgress([...currentProgress]);
         }
@@ -497,18 +501,25 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                                 <button type="button" className="btn btn-ghost" onClick={() => { setFiles([]); setProgress([]); }} disabled={saving} style={{ height: 20, padding: '0 6px', fontSize: 10, color: 'var(--red)' }}>Limpar Tudo</button>
                             </div>
                             {progress.map((p, idx) => (
-                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '4px 0', borderBottom: idx < progress.length - 1 ? '1px solid var(--border-mid)' : 'none' }}>
-                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%', color: 'var(--text-primary)' }}>{p.name}</span>
-                                    <span style={{
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                        color: p.status === 'success' ? 'var(--green)' : p.status === 'error' ? 'var(--red)' : p.status === 'uploading' ? 'var(--accent)' : 'var(--text-muted)'
-                                    }}>
-                                        {p.status === 'success' && 'Concluído'}
-                                        {p.status === 'error' && 'Erro'}
-                                        {p.status === 'uploading' && 'Enviando...'}
-                                        {p.status === 'pending' && 'Pendente'}
-                                    </span>
+                                <div key={idx} style={{ padding: '6px 0', borderBottom: idx < progress.length - 1 ? '1px solid var(--border-mid)' : 'none' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%', color: 'var(--text-primary)' }}>{p.name}</span>
+                                        <span style={{
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                            color: p.status === 'success' ? 'var(--green)' : p.status === 'error' ? 'var(--red)' : p.status === 'uploading' ? 'var(--accent)' : 'var(--text-muted)'
+                                        }}>
+                                            {p.status === 'success' && 'Concluído'}
+                                            {p.status === 'error' && 'Erro'}
+                                            {p.status === 'uploading' && 'Enviando...'}
+                                            {p.status === 'pending' && 'Pendente'}
+                                        </span>
+                                    </div>
+                                    {p.status === 'error' && p.errorMsg && (
+                                        <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 2, paddingLeft: 6, borderLeft: '2px solid var(--red)' }}>
+                                            {p.errorMsg}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
