@@ -5,7 +5,7 @@ import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import {
     Plus, Trash2, Shield, Loader2, X,
     BarChart3, Search, Filter, Eye, EyeOff,
-    Copy, Check, TrendingUp, DollarSign, AlertTriangle
+    Copy, Check, TrendingUp, DollarSign
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -16,13 +16,13 @@ const STATUS_MAP: Record<string, string> = {
     'Ativa': 'badge-green', 'Expirada': 'badge-red', 'A vencer': 'badge-amber'
 };
 
-const CATEGORIA_MAP: Record<string, { cls: string; color: string }> = {
-    'AI':            { cls: 'badge-purple', color: 'var(--purple)' },
-    'Office':        { cls: 'badge-blue',   color: 'var(--blue)'   },
-    'Presentations': { cls: 'badge-amber',  color: 'var(--amber)'  },
-    'Design':        { cls: 'badge-green',  color: 'var(--green)'  },
-    'Video':         { cls: 'badge-red',    color: 'var(--red)'    },
-    'Other':         { cls: '',            color: 'var(--text-secondary)' },
+const CATEGORIA_COLORS: Record<string, string> = {
+    'AI':            '#8B5CF6',
+    'Office':        '#3B82F6',
+    'Presentations': '#EAB308',
+    'Design':        '#EC4899',
+    'Video':         '#F97316',
+    'Other':         '#6B7280',
 };
 
 const CATEGORIES = ['AI', 'Office', 'Presentations', 'Design', 'Video', 'Other'];
@@ -144,9 +144,6 @@ function LicenseModal({
         (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
             setForm(p => ({ ...p, [k]: e.target.value }));
 
-    const parsedCost = parseFloat(form.monthly_cost.replace(',', '.')) || 0;
-    const costIsZero = parsedCost === 0;
-
     return (
         <div className="modal-overlay">
             <div className="modal" style={{ maxWidth: 560 }} ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="license-modal-title">
@@ -195,22 +192,13 @@ function LicenseModal({
                             <input className="input" type="number" min="1" value={form.seats} onChange={f('seats')} />
                         </div>
                         <div className="form-group">
-                            <label>
-                                Custo Mensal (R$)
-                                {costIsZero && (
-                                    <span style={{ color: 'var(--amber)', marginLeft: 6, fontSize: 10 }}>
-                                        <AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />
-                                        Custo zero
-                                    </span>
-                                )}
-                            </label>
+                            <label>Custo Mensal (R$)</label>
                             <input
                                 className="input"
                                 type="text"
                                 placeholder="1.500,00"
                                 value={form.monthly_cost}
                                 onChange={f('monthly_cost')}
-                                style={costIsZero ? { borderColor: 'rgba(245,158,11,0.5)', color: 'var(--amber)' } : {}}
                             />
                         </div>
                     </div>
@@ -271,16 +259,18 @@ function LicenseModal({
 }
 
 function CategoriaBadge({ categoria }: { categoria?: string }) {
-    const cat = categoria || 'Other';
-    const cfg = CATEGORIA_MAP[cat] || CATEGORIA_MAP['Other'];
-    if (!cfg.cls) {
-        return (
-            <span className="badge" style={{ background: 'rgba(122,140,160,0.1)', color: 'var(--text-secondary)', border: '1px solid rgba(122,140,160,0.2)' }}>
-                {cat}
-            </span>
-        );
-    }
-    return <span className={`badge ${cfg.cls}`}>{cat}</span>;
+    const cat   = categoria || 'Other';
+    const color = CATEGORIA_COLORS[cat] ?? CATEGORIA_COLORS['Other'];
+    return (
+        <span className="badge" style={{
+            background: `${color}20`,
+            color,
+            border: `1px solid ${color}40`,
+            fontWeight: 600,
+        }}>
+            {cat}
+        </span>
+    );
 }
 
 export default function LicensesPage() {
@@ -524,16 +514,9 @@ export default function LicensesPage() {
                                             <span style={{ fontFamily: 'JetBrains Mono', fontSize: 13 }}>{l.seats}</span>
                                         </td>
                                         <td>
-                                            {l.monthly_cost === 0 ? (
-                                                <span style={{ fontWeight: 700, color: 'var(--amber)', fontFamily: 'JetBrains Mono', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                    <AlertTriangle size={11} />
-                                                    {fmtCost(l.monthly_cost)}
-                                                </span>
-                                            ) : (
-                                                <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'JetBrains Mono', fontSize: 12 }}>
-                                                    {fmtCost(l.monthly_cost)}
-                                                </span>
-                                            )}
+                                            <span style={{ fontWeight: 700, color: 'var(--green)', fontFamily: 'JetBrains Mono', fontSize: 12 }}>
+                                                {fmtCost(l.monthly_cost)}
+                                            </span>
                                         </td>
                                         <td style={{ fontSize: 12, fontFamily: 'JetBrains Mono', color: 'var(--text-secondary)' }}>
                                             {fmtDate(l.renewal_date)}

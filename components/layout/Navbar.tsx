@@ -5,13 +5,16 @@ import { Bell, Menu } from 'lucide-react';
 import styles from './Navbar.module.css';
 
 const titles: Record<string, { label: string; prefix: string }> = {
-    '/':               { label: 'Dashboard',         prefix: 'Relatório Executivo'   },
-    '/inventario':     { label: 'Inventário',         prefix: 'Gestão de Ativos'      },
-    '/backups':        { label: 'Backups',            prefix: 'Gestão de Backups'     },
-    '/licencas':       { label: 'Licenças',           prefix: 'Software & Compliance' },
-    '/documentacoes':  { label: 'Documentações',      prefix: 'Base de Conhecimento'  },
-    '/infraestrutura': { label: 'Infraestrutura',     prefix: 'Mapeamento de Rede'    },
-    '/administracao':  { label: 'Administração',      prefix: 'Configurações'         },
+    '/':               { label: 'Dashboard',      prefix: 'Relatório Executivo'      },
+    '/inventario':     { label: 'Inventário',      prefix: 'Gestão de Ativos'        },
+    '/backups':        { label: 'Backups',         prefix: 'Gestão de Backups'       },
+    '/licencas':       { label: 'Licenças',        prefix: 'Software & Compliance'   },
+    '/infosec':        { label: 'InfoSec',         prefix: 'Segurança da Informação' },
+    '/documentacoes':  { label: 'Documentações',   prefix: 'Base de Conhecimento'    },
+    '/archive':        { label: 'Archive',         prefix: 'Usuários Desligados'     },
+    '/suppliers':      { label: 'Suppliers',       prefix: 'Fornecedores & Contatos' },
+    '/infraestrutura': { label: 'Infraestrutura',  prefix: 'Mapeamento de Rede'      },
+    '/administracao':  { label: 'Administração',   prefix: 'Configurações'           },
 };
 
 export default function Navbar({ userEmail }: { userEmail?: string }) {

@@ -318,7 +318,7 @@ body {
 .input {
   width: 100%;
   background: rgba(19, 23, 32, 0.8);
-  border: 1px solid var(--border-mid);
+  border: 1px solid rgba(0, 212, 170, 0.22);
   color: var(--text-primary);
   padding: 10px 14px;
   border-radius: var(--radius);
@@ -342,7 +342,7 @@ textarea.input { font-family: inherit; resize: vertical; }
 .select {
   width: 100%;
   background: rgba(19, 23, 32, 0.8);
-  border: 1px solid var(--border-mid);
+  border: 1px solid rgba(0, 212, 170, 0.22);
   color: var(--text-primary);
   padding: 10px 14px;
   border-radius: var(--radius);
