@@ -1,6 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+
+// Extend input HTML attributes to include webkitdirectory
+declare module 'react' {
+    interface InputHTMLAttributes<T> extends React.HTMLAttributes<T> {
+        webkitdirectory?: string;
+        directory?: string;
+    }
+}
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import {
     Plus, Trash2, FileText, Loader2, X, Paperclip,
@@ -251,7 +259,7 @@ function DocModal({ onClose, onSave, folderId, folders }: { onClose: () => void;
 }
 
 function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; onSave: () => void; folderId: string | null }) {
-    const [files, setFiles] = useState<File[]>([]);
+    const [files, setFiles] = useState<{ file: File; relativePath: string }[]>([]);
     const [category, setCategory] = useState('Outro');
     const [responsavel, setResponsavel] = useState('');
     const [saving, setSaving] = useState(false);
@@ -263,30 +271,33 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const selectedFiles = Array.from(e.target.files);
+            const selectedFiles = Array.from(e.target.files).map(f => ({
+                file: f,
+                relativePath: (f as any).webkitRelativePath || f.name
+            }));
             setFiles(prev => [...prev, ...selectedFiles]);
             setProgress(prev => [
                 ...prev,
-                ...selectedFiles.map(f => ({ name: f.name, status: 'pending' }))
+                ...selectedFiles.map(f => ({ name: f.file.name, status: 'pending' as const }))
             ]);
         }
     };
 
-    const traverseEntry = (entry: any): Promise<File[]> => {
+    const traverseEntry = (entry: any, path = ''): Promise<{ file: File; relativePath: string }[]> => {
         return new Promise((resolve) => {
             if (entry.isFile) {
                 entry.file((file: File) => {
-                    resolve([file]);
+                    resolve([{ file, relativePath: path + file.name }]);
                 });
             } else if (entry.isDirectory) {
                 const dirReader = entry.createReader();
-                const allFiles: File[] = [];
+                const allFiles: { file: File; relativePath: string }[] = [];
                 const readEntries = () => {
                     dirReader.readEntries(async (entries: any[]) => {
                         if (entries.length === 0) {
                             resolve(allFiles);
                         } else {
-                            const filePromises = entries.map(e => traverseEntry(e));
+                            const filePromises = entries.map(e => traverseEntry(e, path + entry.name + '/'));
                             const filesArrays = await Promise.all(filePromises);
                             allFiles.push(...filesArrays.flat());
                             readEntries();
@@ -316,7 +327,7 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
         setDragActive(false);
 
         if (e.dataTransfer.items) {
-            const filePromises: Promise<File[]>[] = [];
+            const filePromises: Promise<{ file: File; relativePath: string }[]>[] = [];
             for (let i = 0; i < e.dataTransfer.items.length; i++) {
                 const item = e.dataTransfer.items[i];
                 if (item.kind === 'file') {
@@ -332,15 +343,18 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                 setFiles(prev => [...prev, ...allFiles]);
                 setProgress(prev => [
                     ...prev,
-                    ...allFiles.map(f => ({ name: f.name, status: 'pending' }))
+                    ...allFiles.map(f => ({ name: f.file.name, status: 'pending' as const }))
                 ]);
             }
         } else if (e.dataTransfer.files) {
-            const droppedFiles = Array.from(e.dataTransfer.files);
+            const droppedFiles = Array.from(e.dataTransfer.files).map(f => ({
+                file: f,
+                relativePath: f.name
+            }));
             setFiles(prev => [...prev, ...droppedFiles]);
             setProgress(prev => [
                 ...prev,
-                ...droppedFiles.map(f => ({ name: f.name, status: 'pending' }))
+                ...droppedFiles.map(f => ({ name: f.file.name, status: 'pending' as const }))
             ]);
         }
     };
@@ -351,15 +365,58 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
         setSaving(true);
 
         // Map initial progress
-        const currentProgress = files.map(f => ({ name: f.name, status: 'pending' as const, errorMsg: undefined }));
+        type ProgressItem = { name: string; status: 'pending' | 'uploading' | 'success' | 'error'; errorMsg?: string };
+        const currentProgress: ProgressItem[] = files.map(f => ({ name: f.file.name, status: 'pending' as const, errorMsg: undefined }));
         setProgress(currentProgress);
 
+        const folderCache: { [path: string]: string } = {};
+
+        const ensureFolderStructure = async (relativePath: string, currentFolderId: string | null): Promise<string | null> => {
+            const parts = relativePath.split('/');
+            parts.pop(); // Remove the file name
+            if (parts.length === 0) return currentFolderId;
+
+            let activeFolderId = currentFolderId;
+            let pathAccumulator = '';
+
+            for (const part of parts) {
+                pathAccumulator = pathAccumulator ? `${pathAccumulator}/${part}` : part;
+                if (folderCache[pathAccumulator]) {
+                    activeFolderId = folderCache[pathAccumulator];
+                    continue;
+                }
+
+                try {
+                    const res = await fetch('/api/folders', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: part,
+                            parent_id: activeFolderId,
+                            password: null
+                        })
+                    });
+                    if (!res.ok) throw new Error('Falha ao criar pasta intermediária');
+                    const newFolder = await res.json();
+                    activeFolderId = newFolder.id;
+                    folderCache[pathAccumulator] = newFolder.id;
+                } catch (err) {
+                    console.error('Erro ao recriar estrutura de pastas:', err);
+                }
+            }
+            return activeFolderId;
+        };
+
         for (let i = 0; i < files.length; i++) {
-            const file = files[i];
+            const item = files[i];
+            const { file, relativePath } = item;
             currentProgress[i].status = 'uploading';
             setProgress([...currentProgress]);
 
             try {
+                // Pre-create the directory structure in DB and get the final leaf folder ID
+                const targetFolderId = await ensureFolderStructure(relativePath, folderId);
+
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
                 const { error: uploadError } = await supabase.storage.from('documents').upload(`docs/${fileName}`, file);
@@ -377,7 +434,7 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                         title,
                         category,
                         content: '',
-                        folder_id: folderId || null,
+                        folder_id: targetFolderId,
                         responsavel: responsavel || null,
                         data_revisao: null,
                         file_url: publicUrl,
@@ -486,9 +543,8 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                         <input 
                             type="file" 
                             ref={folderInputRef} 
-                            webkitdirectory="true"
-                            // @ts-ignore
-                            directory="true"
+                            webkitdirectory=""
+                            directory=""
                             multiple 
                             style={{ display: 'none' }} 
                             onChange={handleFileChange} 
@@ -611,6 +667,11 @@ export default function DocsPage() {
         refreshDocs();
     };
 
+    const filteredDocs = useMemo(() =>
+        folderDocs.filter(d => d.title.toLowerCase().includes(search.toLowerCase())),
+        [folderDocs, search]
+    );
+
     const toggleSelectDoc = (id: string) => {
         setSelectedDocIds(prev => {
             const next = new Set(prev);
@@ -651,11 +712,6 @@ export default function DocsPage() {
         setSelectedDocIds(new Set());
         refreshDocs();
     };
-
-    const filteredDocs = useMemo(() =>
-        folderDocs.filter(d => d.title.toLowerCase().includes(search.toLowerCase())),
-        [folderDocs, search]
-    );
 
     // ── Drag-and-drop ─────────────────────────────────────
     const moveDoc = useCallback(async (docId: string, targetFolderId: string | null) => {
