@@ -6,7 +6,7 @@ import {
     Plus, Trash2, FileText, Loader2, X, Paperclip,
     Folder as FolderIcon, ChevronRight, Lock, Eye,
     Search, FolderPlus, ShieldAlert, User, Calendar,
-    GripVertical,
+    GripVertical, Upload,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -250,9 +250,157 @@ function DocModal({ onClose, onSave, folderId, folders }: { onClose: () => void;
     );
 }
 
+function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; onSave: () => void; folderId: string | null }) {
+    const [files, setFiles] = useState<File[]>([]);
+    const [category, setCategory] = useState('Outro');
+    const [responsavel, setResponsavel] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [progress, setProgress] = useState<{ name: string; status: 'pending' | 'uploading' | 'success' | 'error' }[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const supabase = createClient();
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const selectedFiles = Array.from(e.target.files);
+            setFiles(selectedFiles);
+            setProgress(selectedFiles.map(f => ({ name: f.name, status: 'pending' })));
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (files.length === 0) return;
+        setSaving(true);
+
+        const newProgress = [...progress];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            newProgress[i].status = 'uploading';
+            setProgress([...newProgress]);
+
+            try {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage.from('documents').upload(`docs/${fileName}`, file);
+                
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(`docs/${fileName}`);
+
+                // Strip extension for the title
+                const title = file.name.replace(/\.[^/.]+$/, "");
+                const res = await fetch('/api/documents', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        category,
+                        content: '',
+                        folder_id: folderId || null,
+                        responsavel: responsavel || null,
+                        data_revisao: null,
+                        file_url: publicUrl,
+                        file_name: file.name,
+                        file_size: file.size
+                    })
+                });
+
+                if (!res.ok) throw new Error('Falha ao salvar informações do documento');
+
+                newProgress[i].status = 'success';
+            } catch (err) {
+                console.error(err);
+                newProgress[i].status = 'error';
+            }
+            setProgress([...newProgress]);
+        }
+
+        onSave();
+        setSaving(false);
+        const hasErrors = newProgress.some(p => p.status === 'error');
+        if (!hasErrors) {
+            onClose();
+        }
+    };
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal" style={{ maxWidth: 500 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                    <h2 className="modal-title" style={{ marginBottom: 0 }}>Upload em Lote</h2>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={18} /></button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                        <div className="form-group">
+                            <label>Categoria Padrão</label>
+                            <select className="select" value={category} onChange={e => setCategory(e.target.value)}>
+                                {['Procedimento', 'Política', 'Manual', 'Relatório', 'Outro'].map(c => <option key={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Responsável Padrão</label>
+                            <input className="input" value={responsavel} onChange={e => setResponsavel(e.target.value)} placeholder="Nome (opcional)" />
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label>Selecionar Arquivos</label>
+                        <div
+                            onClick={() => !saving && fileInputRef.current?.click()}
+                            style={{
+                                border: '1px dashed var(--border-mid)', borderRadius: 'var(--radius)',
+                                padding: '24px 16px', cursor: saving ? 'not-allowed' : 'pointer', background: 'var(--bg-overlay)',
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyItems: 'center', gap: 10,
+                                color: files.length > 0 ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 13,
+                                transition: 'border-color 0.2s',
+                                textAlign: 'center'
+                            }}
+                        >
+                            <Paperclip size={24} color="var(--accent)" />
+                            {files.length > 0 ? `${files.length} arquivos selecionados` : 'Clique para selecionar múltiplos arquivos (PDF, Imagens, etc.)'}
+                        </div>
+                        <input type="file" ref={fileInputRef} multiple style={{ display: 'none' }} onChange={handleFileChange} disabled={saving} />
+                    </div>
+
+                    {files.length > 0 && (
+                        <div style={{ maxHeight: 180, overflowY: 'auto', marginBottom: 20, border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', background: 'var(--bg-elevated)' }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>Lista de Upload:</div>
+                            {progress.map((p, idx) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '4px 0', borderBottom: idx < progress.length - 1 ? '1px solid var(--border-mid)' : 'none' }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%', color: 'var(--text-primary)' }}>{p.name}</span>
+                                    <span style={{
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: p.status === 'success' ? 'var(--green)' : p.status === 'error' ? 'var(--red)' : p.status === 'uploading' ? 'var(--accent)' : 'var(--text-muted)'
+                                    }}>
+                                        {p.status === 'success' && 'Concluído'}
+                                        {p.status === 'error' && 'Erro'}
+                                        {p.status === 'uploading' && 'Enviando...'}
+                                        {p.status === 'pending' && 'Pendente'}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving || files.length === 0}>
+                            {saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : `Subir ${files.length} Arquivos`}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default function DocsPage() {
     const [docModal,      setDocModal]      = useState(false);
     const [folderModal,   setFolderModal]   = useState(false);
+    const [bulkModal,     setBulkModal]     = useState(false);
     const [passPrompt,    setPassPrompt]    = useState<Folder | null>(null);
     const [viewerDoc,     setViewerDoc]     = useState<Doc | null>(null);
     const [search,        setSearch]        = useState('');
@@ -304,6 +452,14 @@ export default function DocsPage() {
     const handleDeleteDoc = async (id: string) => {
         if (!confirm('Remover documento?')) return;
         await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+        refreshDocs();
+    };
+
+    const handleDeleteFolder = async (e: React.MouseEvent, folder: Folder) => {
+        e.stopPropagation();
+        if (!confirm(`Deseja realmente excluir a pasta "${folder.name}"? Os documentos contidos nela voltarão para a Raiz.`)) return;
+        await fetch(`/api/folders/${folder.id}`, { method: 'DELETE' });
+        refreshFolders();
         refreshDocs();
     };
 
@@ -365,6 +521,7 @@ export default function DocsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {docModal    && <DocModal    onClose={() => setDocModal(false)}    onSave={refreshDocs}    folderId={currentFolder} folders={allFolders} />}
             {folderModal && <FolderModal onClose={() => setFolderModal(false)} onSave={refreshFolders} parentId={currentFolder} />}
+            {bulkModal   && <BulkUploadModal onClose={() => setBulkModal(false)} onSave={() => { refreshDocs(); refreshFolders(); }} folderId={currentFolder} />}
             {passPrompt  && <PasswordPrompt folderName={passPrompt.name} onConfirm={handleUnlock} onCancel={() => setPassPrompt(null)} />}
             {viewerDoc   && <RestrictedViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
 
@@ -424,6 +581,7 @@ export default function DocsPage() {
                         <input className="input" placeholder="Buscar docs..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 34, width: 200 }} />
                     </div>
                     <button className="btn btn-ghost" onClick={() => setFolderModal(true)}><FolderPlus size={16} /> Nova Pasta</button>
+                    <button className="btn btn-ghost" onClick={() => setBulkModal(true)}><Upload size={16} /> Upload Lote</button>
                     <button className="btn btn-primary" onClick={() => setDocModal(true)}><Plus size={16} /> Novo Doc</button>
                 </div>
             </div>
@@ -490,7 +648,26 @@ export default function DocsPage() {
                                 }
                             </div>
                         </div>
-                        <ChevronRight size={14} color="var(--text-muted)" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <button
+                                onClick={(e) => handleDeleteFolder(e, f)}
+                                className="btn btn-ghost"
+                                style={{
+                                    padding: 0,
+                                    width: 28,
+                                    height: 28,
+                                    color: 'var(--red)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: 6,
+                                }}
+                                title="Excluir Pasta"
+                            >
+                                <Trash2 size={13} />
+                            </button>
+                            <ChevronRight size={14} color="var(--text-muted)" />
+                        </div>
                     </div>
                 ))}
 
