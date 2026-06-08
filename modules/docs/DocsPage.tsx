@@ -487,6 +487,8 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                             type="file" 
                             ref={folderInputRef} 
                             webkitdirectory="true"
+                            // @ts-ignore
+                            directory="true"
                             multiple 
                             style={{ display: 'none' }} 
                             onChange={handleFileChange} 
