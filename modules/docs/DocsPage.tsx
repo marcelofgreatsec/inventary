@@ -256,14 +256,92 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
     const [responsavel, setResponsavel] = useState('');
     const [saving, setSaving] = useState(false);
     const [progress, setProgress] = useState<{ name: string; status: 'pending' | 'uploading' | 'success' | 'error' }[]>([]);
+    const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
     const supabase = createClient();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const selectedFiles = Array.from(e.target.files);
-            setFiles(selectedFiles);
-            setProgress(selectedFiles.map(f => ({ name: f.name, status: 'pending' })));
+            setFiles(prev => [...prev, ...selectedFiles]);
+            setProgress(prev => [
+                ...prev,
+                ...selectedFiles.map(f => ({ name: f.name, status: 'pending' }))
+            ]);
+        }
+    };
+
+    const traverseEntry = (entry: any): Promise<File[]> => {
+        return new Promise((resolve) => {
+            if (entry.isFile) {
+                entry.file((file: File) => {
+                    resolve([file]);
+                });
+            } else if (entry.isDirectory) {
+                const dirReader = entry.createReader();
+                const allFiles: File[] = [];
+                const readEntries = () => {
+                    dirReader.readEntries(async (entries: any[]) => {
+                        if (entries.length === 0) {
+                            resolve(allFiles);
+                        } else {
+                            const filePromises = entries.map(e => traverseEntry(e));
+                            const filesArrays = await Promise.all(filePromises);
+                            allFiles.push(...filesArrays.flat());
+                            readEntries();
+                        }
+                    }, () => resolve([]));
+                };
+                readEntries();
+            } else {
+                resolve([]);
+            }
+        });
+    };
+
+    const handleDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+
+        if (e.dataTransfer.items) {
+            const filePromises: Promise<File[]>[] = [];
+            for (let i = 0; i < e.dataTransfer.items.length; i++) {
+                const item = e.dataTransfer.items[i];
+                if (item.kind === 'file') {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) {
+                        filePromises.push(traverseEntry(entry));
+                    }
+                }
+            }
+            const filesArrays = await Promise.all(filePromises);
+            const allFiles = filesArrays.flat();
+            if (allFiles.length > 0) {
+                setFiles(prev => [...prev, ...allFiles]);
+                setProgress(prev => [
+                    ...prev,
+                    ...allFiles.map(f => ({ name: f.name, status: 'pending' }))
+                ]);
+            }
+        } else if (e.dataTransfer.files) {
+            const droppedFiles = Array.from(e.dataTransfer.files);
+            setFiles(prev => [...prev, ...droppedFiles]);
+            setProgress(prev => [
+                ...prev,
+                ...droppedFiles.map(f => ({ name: f.name, status: 'pending' }))
+            ]);
         }
     };
 
@@ -272,12 +350,14 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
         if (files.length === 0) return;
         setSaving(true);
 
-        const newProgress = [...progress];
+        // Map initial progress
+        const currentProgress = files.map(f => ({ name: f.name, status: 'pending' as const }));
+        setProgress(currentProgress);
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            newProgress[i].status = 'uploading';
-            setProgress([...newProgress]);
+            currentProgress[i].status = 'uploading';
+            setProgress([...currentProgress]);
 
             try {
                 const fileExt = file.name.split('.').pop();
@@ -308,17 +388,17 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
 
                 if (!res.ok) throw new Error('Falha ao salvar informações do documento');
 
-                newProgress[i].status = 'success';
+                currentProgress[i].status = 'success';
             } catch (err) {
                 console.error(err);
-                newProgress[i].status = 'error';
+                currentProgress[i].status = 'error';
             }
-            setProgress([...newProgress]);
+            setProgress([...currentProgress]);
         }
 
         onSave();
         setSaving(false);
-        const hasErrors = newProgress.some(p => p.status === 'error');
+        const hasErrors = currentProgress.some(p => p.status === 'error');
         if (!hasErrors) {
             onClose();
         }
@@ -345,28 +425,77 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label>Selecionar Arquivos</label>
+                    <div className="form-group" style={{ marginBottom: 20 }}>
+                        <label>Selecionar Conteúdo</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={() => !saving && fileInputRef.current?.click()}
+                                disabled={saving}
+                                style={{ gap: 8, fontSize: 12, height: 36 }}
+                            >
+                                <Paperclip size={14} /> Arquivos
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={() => !saving && folderInputRef.current?.click()}
+                                disabled={saving}
+                                style={{ gap: 8, fontSize: 12, height: 36 }}
+                            >
+                                <FolderIcon size={14} /> Pasta Inteira
+                            </button>
+                        </div>
                         <div
-                            onClick={() => !saving && fileInputRef.current?.click()}
+                            onDragEnter={handleDrag}
+                            onDragOver={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDrop={handleDrop}
                             style={{
-                                border: '1px dashed var(--border-mid)', borderRadius: 'var(--radius)',
-                                padding: '24px 16px', cursor: saving ? 'not-allowed' : 'pointer', background: 'var(--bg-overlay)',
-                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyItems: 'center', gap: 10,
-                                color: files.length > 0 ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 13,
-                                transition: 'border-color 0.2s',
-                                textAlign: 'center'
+                                border: dragActive ? '2px dashed var(--accent)' : '1px dashed var(--border-mid)',
+                                borderRadius: 'var(--radius)',
+                                padding: '24px 16px',
+                                background: dragActive ? 'rgba(0,212,170,0.06)' : 'var(--bg-overlay)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 10,
+                                color: files.length > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                fontSize: 13,
+                                transition: 'all 0.2s',
+                                textAlign: 'center',
+                                minHeight: 120,
+                                cursor: 'pointer'
                             }}
+                            onClick={() => !saving && fileInputRef.current?.click()}
                         >
-                            <Paperclip size={24} color="var(--accent)" />
-                            {files.length > 0 ? `${files.length} arquivos selecionados` : 'Clique para selecionar múltiplos arquivos (PDF, Imagens, etc.)'}
+                            <Upload size={24} color="var(--accent)" />
+                            {files.length > 0 ? (
+                                <span><strong>{files.length} arquivos</strong> selecionados</span>
+                            ) : (
+                                <span>Arraste arquivos/pastas ou <strong>clique para navegar</strong></span>
+                            )}
                         </div>
                         <input type="file" ref={fileInputRef} multiple style={{ display: 'none' }} onChange={handleFileChange} disabled={saving} />
+                        <input 
+                            type="file" 
+                            ref={folderInputRef} 
+                            {...{ webkitdirectory: "", directory: "" } as any}
+                            multiple 
+                            style={{ display: 'none' }} 
+                            onChange={handleFileChange} 
+                            disabled={saving} 
+                        />
                     </div>
 
                     {files.length > 0 && (
                         <div style={{ maxHeight: 180, overflowY: 'auto', marginBottom: 20, border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', background: 'var(--bg-elevated)' }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>Lista de Upload:</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Fila de Envio ({files.length}):</span>
+                                <button type="button" className="btn btn-ghost" onClick={() => { setFiles([]); setProgress([]); }} disabled={saving} style={{ height: 20, padding: '0 6px', fontSize: 10, color: 'var(--red)' }}>Limpar Tudo</button>
+                            </div>
                             {progress.map((p, idx) => (
                                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '4px 0', borderBottom: idx < progress.length - 1 ? '1px solid var(--border-mid)' : 'none' }}>
                                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%', color: 'var(--text-primary)' }}>{p.name}</span>
@@ -388,7 +517,7 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
                         <button type="submit" className="btn btn-primary" disabled={saving || files.length === 0}>
-                            {saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : `Subir ${files.length} Arquivos`}
+                            {saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : `Subir ${files.length} Itens`}
                         </button>
                     </div>
                 </form>
