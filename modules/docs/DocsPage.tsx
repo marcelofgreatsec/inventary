@@ -1,9 +1,11 @@
+'use client';
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import {
     Plus, Trash2, FileText, Loader2, X, Paperclip,
     Folder as FolderIcon, ChevronRight, Lock, Eye,
-    Search, Filter, FolderPlus, ArrowLeft, ShieldAlert
+    Search, FolderPlus, ShieldAlert, User, Calendar
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -23,6 +25,7 @@ interface Folder {
 interface Doc {
     id: string; title: string; category: string; author_name?: string; created_at: string; content?: string;
     file_url?: string; file_name?: string; file_size?: number; folder_id?: string;
+    responsavel?: string; data_revisao?: string;
 }
 
 function FolderModal({ onClose, onSave, parentId }: { onClose: () => void; onSave: () => void; parentId: string | null }) {
@@ -45,7 +48,7 @@ function FolderModal({ onClose, onSave, parentId }: { onClose: () => void; onSav
             <div className="modal" style={{ maxWidth: 400 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                     <h2 className="modal-title" style={{ marginBottom: 0 }}>Nova Pasta</h2>
-                    <button onClick={onClose} className="btn-close"><X size={18} /></button>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="form-group"><label>Nome da Pasta *</label><input className="input" value={name} onChange={e => setName(e.target.value)} required placeholder="Ex: Procedimentos RH" /></div>
@@ -58,7 +61,7 @@ function FolderModal({ onClose, onSave, parentId }: { onClose: () => void; onSav
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Loader2 size={15} className="spin" /> : 'Criar Pasta'}</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : 'Criar Pasta'}</button>
                     </div>
                 </form>
             </div>
@@ -87,7 +90,6 @@ function PasswordPrompt({ folderName, onConfirm, onCancel }: { folderName: strin
 }
 
 function RestrictedViewer({ doc, onClose }: { doc: Doc; onClose: () => void }) {
-    // Prevent right click and copy
     useEffect(() => {
         const handleContextMenu = (e: MouseEvent) => e.preventDefault();
         document.addEventListener('contextmenu', handleContextMenu);
@@ -108,14 +110,20 @@ function RestrictedViewer({ doc, onClose }: { doc: Doc; onClose: () => void }) {
                     <X size={20} />
                 </button>
             </div>
-            
-            <div className="viewer-container" style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px 20px' }}>
-                <div className="viewer-header" style={{ marginBottom: 20, textAlign: 'center' }}>
+
+            <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px 20px' }}>
+                <div style={{ marginBottom: 20, textAlign: 'center' }}>
                     <h2 style={{ color: '#fff', margin: 0 }}>{doc.title}</h2>
                     <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{doc.category} • {doc.file_name || 'Documento de Texto'}</p>
+                    {doc.responsavel && (
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 4 }}>
+                            Responsável: {doc.responsavel}
+                            {doc.data_revisao && ` · Revisão: ${new Date(doc.data_revisao + 'T00:00:00').toLocaleDateString('pt-BR')}`}
+                        </p>
+                    )}
                 </div>
 
-                <div className="viewer-content" style={{ flex: 1, width: '100%', maxWidth: 1000, background: isPDF ? 'transparent' : '#fff', borderRadius: 8, overflow: 'hidden', position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+                <div style={{ flex: 1, width: '100%', maxWidth: 1000, background: isPDF ? 'transparent' : '#fff', borderRadius: 8, overflow: 'hidden', position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
                     {isPDF ? (
                         <iframe src={`${doc.file_url}#toolbar=0&navpanes=0&scrollbar=0`} width="100%" height="100%" style={{ border: 'none' }} />
                     ) : isImage ? (
@@ -127,22 +135,18 @@ function RestrictedViewer({ doc, onClose }: { doc: Doc; onClose: () => void }) {
                             {doc.content || 'Nenhum conteúdo disponível.'}
                         </div>
                     )}
-                    {/* Overlay transparent layer to block interactions further */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }} />
                 </div>
             </div>
-
-            <style jsx>{`
-                .viewer-content :global(body) {
-                    user-select: none !important;
-                }
-            `}</style>
         </div>
     );
 }
 
 function DocModal({ onClose, onSave, folderId, folders }: { onClose: () => void; onSave: () => void; folderId: string | null; folders: Folder[] }) {
-    const [form, setForm] = useState({ title: '', category: 'Procedimento', content: '', folder_id: folderId || '' });
+    const [form, setForm] = useState({
+        title: '', category: 'Procedimento', content: '',
+        folder_id: folderId || '', responsavel: '', data_revisao: ''
+    });
     const [file, setFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,43 +168,80 @@ function DocModal({ onClose, onSave, folderId, folders }: { onClose: () => void;
         await fetch('/api/documents', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...form, ...fileData })
+            body: JSON.stringify({ ...form, ...fileData, data_revisao: form.data_revisao || null })
         });
         onSave(); onClose(); setSaving(false);
     };
+
+    const f = (k: keyof typeof form) =>
+        (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+            setForm(p => ({ ...p, [k]: e.target.value }));
 
     return (
         <div className="modal-overlay">
             <div className="modal" style={{ maxWidth: 640 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                     <h2 className="modal-title" style={{ marginBottom: 0 }}>Nova Documentação</h2>
-                    <button onClick={onClose} className="btn-close"><X size={18} /></button>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="form-group"><label>Título *</label><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required placeholder="Título do doc" /></div>
+                        <div className="form-group">
+                            <label>Título *</label>
+                            <input className="input" value={form.title} onChange={f('title')} required placeholder="Título do documento" />
+                        </div>
                         <div className="form-group">
                             <label>Pasta Destino</label>
-                            <select className="select" value={form.folder_id} onChange={e => setForm(p => ({ ...p, folder_id: e.target.value }))}>
+                            <select className="select" value={form.folder_id} onChange={f('folder_id')}>
                                 <option value="">Raiz (Sem pasta)</option>
-                                {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                {folders.map(folder => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
                             </select>
                         </div>
                     </div>
-                    <div className="form-group"><label>Categoria</label><select className="select" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>{['Procedimento', 'Política', 'Manual', 'Relatório', 'Outro'].map(c => <option key={c}>{c}</option>)}</select></div>
-                    <div className="form-group"><label>Conteúdo</label><textarea className="input" style={{ minHeight: 120 }} value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Descrição ou conteúdo do doc..." /></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="form-group">
+                            <label>Categoria</label>
+                            <select className="select" value={form.category} onChange={f('category')}>
+                                {['Procedimento', 'Política', 'Manual', 'Relatório', 'Outro'].map(c => <option key={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Responsável</label>
+                            <input className="input" value={form.responsavel} onChange={f('responsavel')} placeholder="Nome do responsável" />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label>Data de Revisão</label>
+                        <input className="input" type="date" value={form.data_revisao} onChange={f('data_revisao')} />
+                    </div>
+                    <div className="form-group">
+                        <label>Conteúdo</label>
+                        <textarea className="input" style={{ minHeight: 100 }} value={form.content} onChange={f('content')} placeholder="Descrição ou conteúdo do documento..." />
+                    </div>
 
                     <div className="form-group">
                         <label>Arquivo</label>
-                        <div onClick={() => fileInputRef.current?.click()} className="input-file-simulated">
-                            <Paperclip size={16} /> {file ? file.name : 'Clique para anexar (PDF ou Imagem)'}
+                        <div
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                                border: '1px dashed var(--border-mid)', borderRadius: 'var(--radius)',
+                                padding: '12px 16px', cursor: 'pointer', background: 'var(--bg-overlay)',
+                                display: 'flex', alignItems: 'center', gap: 10,
+                                color: file ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 13,
+                                transition: 'border-color 0.2s',
+                            }}
+                        >
+                            <Paperclip size={16} />
+                            {file ? file.name : 'Clique para anexar (PDF ou Imagem)'}
                         </div>
                         <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] || null)} />
                     </div>
 
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <Loader2 size={15} className="spin" /> : 'Salvar Documento'}</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>
+                            {saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : 'Salvar Documento'}
+                        </button>
                     </div>
                 </form>
             </div>
@@ -217,12 +258,12 @@ export default function DocsPage() {
     const [currentFolder, setCurrentFolder] = useState<string | null>(null);
     const [unlocked,      setUnlocked]      = useState<Set<string>>(new Set());
 
-    const { data: docs, refresh: refreshDocs } = useRealtimeTable<Doc>('/api/documents', 'documents');
+    const { data: docs,       refresh: refreshDocs    } = useRealtimeTable<Doc>('/api/documents', 'documents');
     const { data: allFolders, refresh: refreshFolders } = useRealtimeTable<Folder>('/api/folders', 'folders');
 
-    const folders = useMemo(() => allFolders.filter(f => f.parent_id === currentFolder), [allFolders, currentFolder]);
+    const folders    = useMemo(() => allFolders.filter(f => f.parent_id === currentFolder), [allFolders, currentFolder]);
     const folderDocs = useMemo(() => docs.filter(d => (d.folder_id || null) === currentFolder), [docs, currentFolder]);
-    
+
     const folderPath = useMemo(() => {
         const path: Folder[] = [];
         let currId = currentFolder;
@@ -259,28 +300,38 @@ export default function DocsPage() {
         refreshDocs();
     };
 
+    const filteredDocs = useMemo(() =>
+        folderDocs.filter(d => d.title.toLowerCase().includes(search.toLowerCase())),
+        [folderDocs, search]
+    );
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {docModal && <DocModal onClose={() => setDocModal(false)} onSave={refreshDocs} folderId={currentFolder} folders={allFolders} />}
+            {docModal    && <DocModal    onClose={() => setDocModal(false)}    onSave={refreshDocs}    folderId={currentFolder} folders={allFolders} />}
             {folderModal && <FolderModal onClose={() => setFolderModal(false)} onSave={refreshFolders} parentId={currentFolder} />}
-            {passPrompt && <PasswordPrompt folderName={passPrompt.name} onConfirm={handleUnlock} onCancel={() => setPassPrompt(null)} />}
-            {viewerDoc && <RestrictedViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
+            {passPrompt  && <PasswordPrompt folderName={passPrompt.name} onConfirm={handleUnlock} onCancel={() => setPassPrompt(null)} />}
+            {viewerDoc   && <RestrictedViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
 
             {/* Header / Breadcrumbs */}
             <div className="page-header" style={{ marginBottom: 24 }}>
                 <div>
                     <h1 className="page-title">Documentações</h1>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: 'var(--text-muted)', fontSize: 13 }}>
-                        <div 
-                            style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', hover: { color: 'var(--accent)' } as any }} 
+                        <span
                             onClick={() => setCurrentFolder(null)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: currentFolder ? 'var(--text-muted)' : 'var(--accent)' }}
                         >
-                            <FileText size={14} /> <span>Raiz</span>
-                        </div>
+                            <FileText size={14} /> Raiz
+                        </span>
                         {folderPath.map(p => (
                             <React.Fragment key={p.id}>
                                 <ChevronRight size={12} />
-                                <span onClick={() => setCurrentFolder(p.id)} style={{ cursor: 'pointer' }}>{p.name}</span>
+                                <span
+                                    onClick={() => setCurrentFolder(p.id)}
+                                    style={{ cursor: 'pointer', color: currentFolder === p.id ? 'var(--accent)' : 'var(--text-muted)' }}
+                                >
+                                    {p.name}
+                                </span>
                             </React.Fragment>
                         ))}
                     </div>
@@ -297,9 +348,30 @@ export default function DocsPage() {
 
             {/* Grid for Folders and Files */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                {/* Folders First */}
+                {/* Back navigation */}
+                {currentFolder && (
+                    <div
+                        className="card"
+                        onClick={() => setCurrentFolder(folderPath.length > 1 ? folderPath[folderPath.length - 2].id : null)}
+                        style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', border: '1px dashed var(--border-mid)' }}
+                    >
+                        <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                            <ChevronRight size={20} style={{ transform: 'rotate(180deg)' }} />
+                        </div>
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Voltar</span>
+                    </div>
+                )}
+
+                {/* Folders */}
                 {folders.map(f => (
-                    <div key={f.id} className="card folder-card" onClick={() => handleOpenFolder(f)} style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.2s' }}>
+                    <div
+                        key={f.id}
+                        className="card"
+                        onClick={() => handleOpenFolder(f)}
+                        style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.2s' }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--amber)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                    >
                         <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--amber)' }}>
                             <FolderIcon size={20} fill="currentColor" />
                         </div>
@@ -308,28 +380,46 @@ export default function DocsPage() {
                                 {f.name}
                                 {f.password && <Lock size={12} color="var(--amber)" />}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{allFolders.filter(x => x.parent_id === f.id).length} pastas • {docs.filter(d => d.folder_id === f.id).length} arquivos</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                {allFolders.filter(x => x.parent_id === f.id).length} pastas · {docs.filter(d => d.folder_id === f.id).length} arquivos
+                            </div>
                         </div>
                         <ChevronRight size={14} color="var(--text-muted)" />
                     </div>
                 ))}
 
                 {/* Documents */}
-                {folderDocs.filter(d => d.title.toLowerCase().includes(search.toLowerCase())).map(d => (
-                    <div key={d.id} className="card doc-card" style={{ padding: '20px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {filteredDocs.map(d => (
+                    <div
+                        key={d.id}
+                        className="card"
+                        style={{ padding: '20px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12, transition: 'all 0.2s' }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                    >
                         <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0 }}>
                                     <FileText size={16} />
                                 </div>
                                 <div style={{ maxWidth: 160 }}>
                                     <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.title}</div>
-                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{new Date(d.created_at).toLocaleDateString()}</div>
+                                    {d.responsavel && (
+                                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <User size={10} /> {d.responsavel}
+                                        </div>
+                                    )}
+                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        {d.data_revisao
+                                            ? <><Calendar size={9} /> Revisão: {new Date(d.data_revisao + 'T00:00:00').toLocaleDateString('pt-BR')}</>
+                                            : new Date(d.created_at).toLocaleDateString('pt-BR')
+                                        }
+                                    </div>
                                 </div>
                             </div>
                             <span className={`badge ${CAT_MAP[d.category] || 'badge-blue'}`} style={{ fontSize: 9 }}>{d.category}</span>
                         </div>
-                        
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)', minHeight: 20 }}>
                             {d.file_name && <Paperclip size={10} />}
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.file_name || 'Apenas texto'}</span>
@@ -348,37 +438,16 @@ export default function DocsPage() {
             </div>
 
             {/* Empty State */}
-            {folders.length === 0 && folderDocs.length === 0 && (
-                <div className="card empty" style={{ padding: 60 }}>
+            {folders.length === 0 && filteredDocs.length === 0 && (
+                <div className="card empty" style={{ padding: 60, marginTop: 16 }}>
                     <FolderIcon size={48} color="var(--text-muted)" style={{ opacity: 0.3 }} />
                     <p style={{ marginTop: 16 }}>{currentFolder ? 'Esta pasta está vazia.' : 'Nenhuma documentação na raiz.'}</p>
                     <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setFolderModal(true)}>Criar Pasta</button>
-                        <button className="btn btn-primary btn-sm" onClick={() => setDocModal(true)}>Enviar Doc</button>
+                        <button className="btn btn-ghost" onClick={() => setFolderModal(true)}>Criar Pasta</button>
+                        <button className="btn btn-primary" onClick={() => setDocModal(true)}>Enviar Doc</button>
                     </div>
                 </div>
             )}
-
-            <style jsx>{`
-                .folder-card:hover { border-color: var(--amber) !important; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-                .doc-card:hover { border-color: var(--accent) !important; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-                .input-file-simulated {
-                    border: 1px dashed var(--border-mid);
-                    border-radius: var(--radius);
-                    padding: 12px;
-                    text-align: center;
-                    cursor: pointer;
-                    background: var(--bg-overlay);
-                    font-size: 13,
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8;
-                    color: var(--text-secondary);
-                }
-                .btn-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; }
-                .btn-close:hover { background: var(--bg-elevated); color: var(--text-primary); }
-            `}</style>
         </div>
     );
 }

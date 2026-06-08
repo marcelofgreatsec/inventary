@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
     LayoutDashboard, Package, HardDrive, FileText,
-    Shield, Server, Settings, LogOut, ChevronRight, X
+    Shield, Server, Settings, LogOut, ChevronRight, X,
+    ShieldCheck, Archive, Building2
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
@@ -15,7 +16,10 @@ const nav = [
     { href: '/inventario',     label: 'Inventário',     icon: Package         },
     { href: '/backups',        label: 'Backups',        icon: HardDrive       },
     { href: '/licencas',       label: 'Licenças',       icon: Shield          },
+    { href: '/infosec',        label: 'InfoSec',        icon: ShieldCheck     },
     { href: '/documentacoes',  label: 'Documentações',  icon: FileText        },
+    { href: '/archive',        label: 'Archive',        icon: Archive         },
+    { href: '/suppliers',      label: 'Suppliers',      icon: Building2       },
     { href: '/infraestrutura', label: 'Infraestrutura', icon: Server          },
     { href: '/administracao',  label: 'Administração',  icon: Settings        },
 ];
@@ -59,7 +63,7 @@ export default function Sidebar() {
                     <div className={styles.brandName}>Inventary</div>
                     <div className={styles.brandSub}>Gestão de TI</div>
                 </div>
-                <span className={styles.brandVersion}>v2.0</span>
+                <span className={styles.brandVersion}>v2.1</span>
                 <button
                     className={styles.closeBtn}
                     onClick={() => setMobileOpen(false)}

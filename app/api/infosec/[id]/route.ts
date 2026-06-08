@@ -10,15 +10,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
     const body = await req.json();
-    const { name, vendor, type, status, seats, monthly_cost, renewal_date, key, login, password, categoria } = body;
-    const updateData = { name, vendor, type, status, seats, monthly_cost, renewal_date, key, login, password, categoria };
-    
-    const { data, error } = await supabase.from('licenses').update(updateData).eq('id', id).select().single();
+    const { nome, cargo, email, telefone, empresa, categoria, notas } = body;
+
+    const { data, error } = await supabase
+        .from('infosec_contacts')
+        .update({ nome, cargo, email, telefone, empresa, categoria, notas })
+        .eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     await supabase.from('audit_logs').insert({
         user_id: user.id, user_email: user.email,
-        action: 'UPDATE', table_name: 'licenses', record_id: id,
+        action: 'UPDATE', table_name: 'infosec_contacts', record_id: id,
     });
 
     return NextResponse.json(data);
@@ -29,12 +31,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    const { error } = await supabase.from('licenses').delete().eq('id', id);
+
+    const { error } = await supabase.from('infosec_contacts').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     await supabase.from('audit_logs').insert({
         user_id: user.id, user_email: user.email,
-        action: 'DELETE', table_name: 'licenses', record_id: id,
+        action: 'DELETE', table_name: 'infosec_contacts', record_id: id,
     });
 
     return NextResponse.json({ ok: true });
