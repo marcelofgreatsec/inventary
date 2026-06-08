@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import {
     Plus, Trash2, FileText, Loader2, X, Paperclip,
     Folder as FolderIcon, ChevronRight, Lock, Eye,
-    Search, FolderPlus, ShieldAlert, User, Calendar
+    Search, FolderPlus, ShieldAlert, User, Calendar,
+    GripVertical,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -258,6 +259,10 @@ export default function DocsPage() {
     const [currentFolder, setCurrentFolder] = useState<string | null>(null);
     const [unlocked,      setUnlocked]      = useState<Set<string>>(new Set());
 
+    // drag state
+    const [draggingDocId,   setDraggingDocId]   = useState<string | null>(null);
+    const [dragOverTarget,  setDragOverTarget]   = useState<string | null>(null); // folder id or '__root__'
+
     const { data: docs,       refresh: refreshDocs    } = useRealtimeTable<Doc>('/api/documents', 'documents');
     const { data: allFolders, refresh: refreshFolders } = useRealtimeTable<Folder>('/api/folders', 'folders');
 
@@ -275,6 +280,8 @@ export default function DocsPage() {
         }
         return path;
     }, [allFolders, currentFolder]);
+
+    const parentFolderId = folderPath.length > 1 ? folderPath[folderPath.length - 2].id : null;
 
     const handleOpenFolder = (f: Folder) => {
         if (f.password && !unlocked.has(f.id)) {
@@ -305,6 +312,55 @@ export default function DocsPage() {
         [folderDocs, search]
     );
 
+    // ── Drag-and-drop ─────────────────────────────────────
+    const moveDoc = useCallback(async (docId: string, targetFolderId: string | null) => {
+        await fetch(`/api/documents/${docId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folder_id: targetFolderId }),
+        });
+        refreshDocs();
+    }, [refreshDocs]);
+
+    const onDocDragStart = (e: React.DragEvent, docId: string) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('docId', docId);
+        setDraggingDocId(docId);
+    };
+
+    const onDocDragEnd = () => {
+        setDraggingDocId(null);
+        setDragOverTarget(null);
+    };
+
+    const onDropZoneDragOver = (e: React.DragEvent, targetId: string) => {
+        if (!draggingDocId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverTarget(targetId);
+    };
+
+    const onDropZoneDragLeave = (e: React.DragEvent) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setDragOverTarget(null);
+        }
+    };
+
+    const onDrop = async (e: React.DragEvent, targetFolderId: string | null) => {
+        e.preventDefault();
+        const docId = e.dataTransfer.getData('docId') || draggingDocId;
+        setDragOverTarget(null);
+        setDraggingDocId(null);
+        if (!docId) return;
+        const doc = docs.find(d => d.id === docId);
+        const currentDocFolder = doc?.folder_id ?? null;
+        if (currentDocFolder === targetFolderId) return; // already there
+        await moveDoc(docId, targetFolderId);
+    };
+
+    const isDragOver = (id: string) => dragOverTarget === id;
+    const isAnyDragging = draggingDocId !== null;
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {docModal    && <DocModal    onClose={() => setDocModal(false)}    onSave={refreshDocs}    folderId={currentFolder} folders={allFolders} />}
@@ -317,18 +373,39 @@ export default function DocsPage() {
                 <div>
                     <h1 className="page-title">Documentações</h1>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: 'var(--text-muted)', fontSize: 13 }}>
+                        {/* Raiz como drop zone */}
                         <span
                             onClick={() => setCurrentFolder(null)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: currentFolder ? 'var(--text-muted)' : 'var(--accent)' }}
+                            onDragOver={e => onDropZoneDragOver(e, '__root__')}
+                            onDragLeave={onDropZoneDragLeave}
+                            onDrop={e => onDrop(e, null)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                                color: currentFolder ? (isDragOver('__root__') ? 'var(--accent)' : 'var(--text-muted)') : 'var(--accent)',
+                                padding: '2px 6px', borderRadius: 6,
+                                background: isDragOver('__root__') ? 'rgba(0,212,170,0.12)' : 'transparent',
+                                border: isDragOver('__root__') ? '1px dashed var(--accent)' : '1px solid transparent',
+                                transition: 'all 0.15s',
+                            }}
                         >
                             <FileText size={14} /> Raiz
                         </span>
-                        {folderPath.map(p => (
+                        {folderPath.map((p, i) => (
                             <React.Fragment key={p.id}>
                                 <ChevronRight size={12} />
                                 <span
                                     onClick={() => setCurrentFolder(p.id)}
-                                    style={{ cursor: 'pointer', color: currentFolder === p.id ? 'var(--accent)' : 'var(--text-muted)' }}
+                                    onDragOver={e => onDropZoneDragOver(e, `bc_${p.id}`)}
+                                    onDragLeave={onDropZoneDragLeave}
+                                    onDrop={e => onDrop(e, p.id)}
+                                    style={{
+                                        cursor: 'pointer',
+                                        color: currentFolder === p.id ? 'var(--accent)' : (isDragOver(`bc_${p.id}`) ? 'var(--accent)' : 'var(--text-muted)'),
+                                        padding: '2px 6px', borderRadius: 6,
+                                        background: isDragOver(`bc_${p.id}`) ? 'rgba(0,212,170,0.12)' : 'transparent',
+                                        border: isDragOver(`bc_${p.id}`) ? '1px dashed var(--accent)' : '1px solid transparent',
+                                        transition: 'all 0.15s',
+                                    }}
                                 >
                                     {p.name}
                                 </span>
@@ -336,7 +413,12 @@ export default function DocsPage() {
                         ))}
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    {isAnyDragging && (
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(0,212,170,0.06)', borderRadius: 8, border: '1px solid var(--border-mid)' }}>
+                            <GripVertical size={13} /> Arraste para uma pasta
+                        </div>
+                    )}
                     <div style={{ position: 'relative' }}>
                         <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                         <input className="input" placeholder="Buscar docs..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 34, width: 200 }} />
@@ -348,31 +430,52 @@ export default function DocsPage() {
 
             {/* Grid for Folders and Files */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                {/* Back navigation */}
+                {/* Back navigation — também é drop zone para pasta pai */}
                 {currentFolder && (
                     <div
                         className="card"
-                        onClick={() => setCurrentFolder(folderPath.length > 1 ? folderPath[folderPath.length - 2].id : null)}
-                        style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', border: '1px dashed var(--border-mid)' }}
+                        onClick={() => setCurrentFolder(parentFolderId)}
+                        onDragOver={e => onDropZoneDragOver(e, `__parent__`)}
+                        onDragLeave={onDropZoneDragLeave}
+                        onDrop={e => onDrop(e, parentFolderId)}
+                        style={{
+                            padding: '20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer',
+                            border: isDragOver('__parent__') ? '1px dashed var(--accent)' : '1px dashed var(--border-mid)',
+                            background: isDragOver('__parent__') ? 'rgba(0,212,170,0.06)' : undefined,
+                            transition: 'all 0.15s',
+                        }}
                     >
-                        <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDragOver('__parent__') ? 'var(--accent)' : 'var(--text-muted)' }}>
                             <ChevronRight size={20} style={{ transform: 'rotate(180deg)' }} />
                         </div>
-                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Voltar</span>
+                        <span style={{ fontSize: 13, color: isDragOver('__parent__') ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                            {isDragOver('__parent__') ? 'Mover para pasta acima' : 'Voltar'}
+                        </span>
                     </div>
                 )}
 
-                {/* Folders */}
+                {/* Folders — drop zones */}
                 {folders.map(f => (
                     <div
                         key={f.id}
                         className="card"
-                        onClick={() => handleOpenFolder(f)}
-                        style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.2s' }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--amber)')}
-                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                        onClick={() => !draggingDocId && handleOpenFolder(f)}
+                        onDragOver={e => onDropZoneDragOver(e, f.id)}
+                        onDragLeave={onDropZoneDragLeave}
+                        onDrop={e => onDrop(e, f.id)}
+                        style={{
+                            padding: '20px', display: 'flex', alignItems: 'center', gap: 16, cursor: draggingDocId ? 'copy' : 'pointer',
+                            border: isDragOver(f.id)
+                                ? '1px dashed var(--amber)'
+                                : '1px solid var(--border)',
+                            background: isDragOver(f.id) ? 'rgba(245,158,11,0.06)' : undefined,
+                            transform: isDragOver(f.id) ? 'scale(1.02)' : undefined,
+                            transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { if (!draggingDocId) e.currentTarget.style.borderColor = 'var(--amber)'; }}
+                        onMouseLeave={e => { if (!draggingDocId) e.currentTarget.style.borderColor = 'var(--border)'; }}
                     >
-                        <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--amber)' }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 10, background: isDragOver(f.id) ? 'rgba(245,158,11,0.12)' : 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--amber)', transition: 'background 0.15s' }}>
                             <FolderIcon size={20} fill="currentColor" />
                         </div>
                         <div style={{ flex: 1 }}>
@@ -381,26 +484,39 @@ export default function DocsPage() {
                                 {f.password && <Lock size={12} color="var(--amber)" />}
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                                {allFolders.filter(x => x.parent_id === f.id).length} pastas · {docs.filter(d => d.folder_id === f.id).length} arquivos
+                                {isDragOver(f.id)
+                                    ? <span style={{ color: 'var(--amber)' }}>Soltar para mover aqui</span>
+                                    : <>{allFolders.filter(x => x.parent_id === f.id).length} pastas · {docs.filter(d => d.folder_id === f.id).length} arquivos</>
+                                }
                             </div>
                         </div>
                         <ChevronRight size={14} color="var(--text-muted)" />
                     </div>
                 ))}
 
-                {/* Documents */}
+                {/* Documents — draggable */}
                 {filteredDocs.map(d => (
                     <div
                         key={d.id}
                         className="card"
-                        style={{ padding: '20px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12, transition: 'all 0.2s' }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                        draggable
+                        onDragStart={e => onDocDragStart(e, d.id)}
+                        onDragEnd={onDocDragEnd}
+                        style={{
+                            padding: '20px', border: '1px solid var(--border)',
+                            display: 'flex', flexDirection: 'column', gap: 12,
+                            transition: 'all 0.2s',
+                            opacity: draggingDocId === d.id ? 0.4 : 1,
+                            cursor: 'grab',
+                        }}
+                        onMouseEnter={e => { if (draggingDocId !== d.id) e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
                     >
                         <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0 }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0, position: 'relative' }}>
                                     <FileText size={16} />
+                                    <GripVertical size={10} style={{ position: 'absolute', top: -6, right: -6, color: 'var(--text-muted)', opacity: 0.6 }} />
                                 </div>
                                 <div style={{ maxWidth: 160 }}>
                                     <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.title}</div>
