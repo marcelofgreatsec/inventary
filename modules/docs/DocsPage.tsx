@@ -269,56 +269,69 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
     const folderInputRef = useRef<HTMLInputElement>(null);
     const supabase = createClient();
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const selectedFiles = Array.from(e.target.files).map(f => ({
-                file: f,
-                relativePath: (f as any).webkitRelativePath || f.name
-            }));
-            setFiles(prev => [...prev, ...selectedFiles]);
-            setProgress(prev => [
-                ...prev,
-                ...selectedFiles.map(f => ({ name: f.file.name, status: 'pending' as const }))
-            ]);
-        }
+    const addToQueue = (newFiles: { file: File; relativePath: string }[]) => {
+        setFiles(prev => [...prev, ...newFiles]);
+        setProgress(prev => [
+            ...prev,
+            ...newFiles.map(f => ({ name: f.relativePath, status: 'pending' as const }))
+        ]);
     };
 
-    const traverseEntry = (entry: any, path = ''): Promise<{ file: File; relativePath: string }[]> => {
-        return new Promise((resolve) => {
-            if (entry.isFile) {
-                entry.file((file: File) => {
-                    resolve([{ file, relativePath: path + file.name }]);
-                });
-            } else if (entry.isDirectory) {
-                const dirReader = entry.createReader();
-                const allFiles: { file: File; relativePath: string }[] = [];
-                const readEntries = () => {
-                    dirReader.readEntries(async (entries: any[]) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files) return;
+        const selectedFiles = Array.from(e.target.files).map(f => ({
+            file: f,
+            relativePath: (f as any).webkitRelativePath || f.name
+        }));
+        addToQueue(selectedFiles);
+        e.target.value = '';
+    };
+
+    const readAllEntries = async (
+        entry: FileSystemEntry,
+        basePath = ''
+    ): Promise<{ file: File; relativePath: string }[]> => {
+        if (entry.isFile) {
+            return new Promise((resolve) => {
+                (entry as FileSystemFileEntry).file(
+                    (file) => resolve([{ file, relativePath: basePath + file.name }]),
+                    () => resolve([])
+                );
+            });
+        }
+
+        if (entry.isDirectory) {
+            const dirEntry = entry as FileSystemDirectoryEntry;
+            const dirPath = basePath + dirEntry.name + '/';
+            const reader = dirEntry.createReader();
+            const allResults: { file: File; relativePath: string }[] = [];
+
+            await new Promise<void>((resolve) => {
+                const readBatch = () => {
+                    reader.readEntries(async (entries) => {
                         if (entries.length === 0) {
-                            resolve(allFiles);
-                        } else {
-                            const filePromises = entries.map(e => traverseEntry(e, path + entry.name + '/'));
-                            const filesArrays = await Promise.all(filePromises);
-                            allFiles.push(...filesArrays.flat());
-                            readEntries();
+                            resolve();
+                            return;
                         }
-                    }, () => resolve([]));
+                        const nested = await Promise.all(entries.map(e => readAllEntries(e, dirPath)));
+                        allResults.push(...nested.flat());
+                        readBatch();
+                    }, () => resolve());
                 };
-                readEntries();
-            } else {
-                resolve([]);
-            }
-        });
+                readBatch();
+            });
+
+            return allResults;
+        }
+
+        return [];
     };
 
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
-        }
+        if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+        else if (e.type === 'dragleave') setDragActive(false);
     };
 
     const handleDrop = async (e: React.DragEvent) => {
@@ -326,37 +339,21 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
         e.stopPropagation();
         setDragActive(false);
 
-        if (e.dataTransfer.items) {
-            const filePromises: Promise<{ file: File; relativePath: string }[]>[] = [];
-            for (let i = 0; i < e.dataTransfer.items.length; i++) {
-                const item = e.dataTransfer.items[i];
-                if (item.kind === 'file') {
-                    const entry = item.webkitGetAsEntry();
-                    if (entry) {
-                        filePromises.push(traverseEntry(entry));
-                    }
-                }
-            }
-            const filesArrays = await Promise.all(filePromises);
-            const allFiles = filesArrays.flat();
-            if (allFiles.length > 0) {
-                setFiles(prev => [...prev, ...allFiles]);
-                setProgress(prev => [
-                    ...prev,
-                    ...allFiles.map(f => ({ name: f.file.name, status: 'pending' as const }))
-                ]);
-            }
-        } else if (e.dataTransfer.files) {
-            const droppedFiles = Array.from(e.dataTransfer.files).map(f => ({
-                file: f,
-                relativePath: f.name
-            }));
-            setFiles(prev => [...prev, ...droppedFiles]);
-            setProgress(prev => [
-                ...prev,
-                ...droppedFiles.map(f => ({ name: f.file.name, status: 'pending' as const }))
-            ]);
+        if (!e.dataTransfer.items) return;
+
+        const results: { file: File; relativePath: string }[] = [];
+        const promises: Promise<void>[] = [];
+
+        for (let i = 0; i < e.dataTransfer.items.length; i++) {
+            const item = e.dataTransfer.items[i];
+            if (item.kind !== 'file') continue;
+            const entry = item.webkitGetAsEntry();
+            if (!entry) continue;
+            promises.push(readAllEntries(entry).then(fs => { results.push(...fs); }));
         }
+
+        await Promise.all(promises);
+        if (results.length > 0) addToQueue(results);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -364,25 +361,32 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
         if (files.length === 0) return;
         setSaving(true);
 
-        // Map initial progress
         type ProgressItem = { name: string; status: 'pending' | 'uploading' | 'success' | 'error'; errorMsg?: string };
-        const currentProgress: ProgressItem[] = files.map(f => ({ name: f.file.name, status: 'pending' as const, errorMsg: undefined }));
-        setProgress(currentProgress);
+        const currentProgress: ProgressItem[] = files.map(f => ({
+            name: f.relativePath,
+            status: 'pending' as const,
+            errorMsg: undefined
+        }));
+        setProgress([...currentProgress]);
 
-        const folderCache: { [path: string]: string } = {};
+        const folderCache: Record<string, string> = {};
 
-        const ensureFolderStructure = async (relativePath: string, currentFolderId: string | null): Promise<string | null> => {
+        const ensureFolderStructure = async (
+            relativePath: string,
+            rootFolderId: string | null
+        ): Promise<string | null> => {
             const parts = relativePath.split('/');
-            parts.pop(); // Remove the file name
-            if (parts.length === 0) return currentFolderId;
+            parts.pop();
+            if (parts.length === 0) return rootFolderId;
 
-            let activeFolderId = currentFolderId;
-            let pathAccumulator = '';
+            let parentId = rootFolderId;
+            let pathKey = '';
 
             for (const part of parts) {
-                pathAccumulator = pathAccumulator ? `${pathAccumulator}/${part}` : part;
-                if (folderCache[pathAccumulator]) {
-                    activeFolderId = folderCache[pathAccumulator];
+                pathKey = pathKey ? `${pathKey}/${part}` : part;
+
+                if (folderCache[pathKey] !== undefined) {
+                    parentId = folderCache[pathKey] || null;
                     continue;
                 }
 
@@ -390,43 +394,46 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                     const res = await fetch('/api/folders', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name: part,
-                            parent_id: activeFolderId,
-                            password: null
-                        })
+                        body: JSON.stringify({ name: part, parent_id: parentId, password: null })
                     });
-                    if (!res.ok) throw new Error('Falha ao criar pasta intermediária');
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.error || `HTTP ${res.status}`);
+                    }
                     const newFolder = await res.json();
-                    activeFolderId = newFolder.id;
-                    folderCache[pathAccumulator] = newFolder.id;
-                } catch (err) {
-                    console.error('Erro ao recriar estrutura de pastas:', err);
+                    if (!newFolder?.id) throw new Error('API não retornou ID da pasta');
+                    parentId = newFolder.id;
+                    folderCache[pathKey] = newFolder.id;
+                } catch (err: any) {
+                    console.error(`[ensureFolder] "${pathKey}":`, err.message);
+                    folderCache[pathKey] = parentId ?? '';
                 }
             }
-            return activeFolderId;
+
+            return parentId;
         };
 
         for (let i = 0; i < files.length; i++) {
-            const item = files[i];
-            const { file, relativePath } = item;
+            const { file, relativePath } = files[i];
             currentProgress[i].status = 'uploading';
             setProgress([...currentProgress]);
 
             try {
-                // Pre-create the directory structure in DB and get the final leaf folder ID
                 const targetFolderId = await ensureFolderStructure(relativePath, folderId);
 
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage.from('documents').upload(`docs/${fileName}`, file);
-                
+                const fileExt = file.name.split('.').pop() || 'bin';
+                const storageName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('documents')
+                    .upload(`docs/${storageName}`, file);
+
                 if (uploadError) throw uploadError;
 
-                const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(`docs/${fileName}`);
+                const { data: { publicUrl } } = supabase.storage
+                    .from('documents')
+                    .getPublicUrl(`docs/${storageName}`);
 
-                // Strip extension for the title
-                const title = file.name.replace(/\.[^/.]+$/, "");
+                const title = file.name.replace(/\.[^/.]+$/, '');
                 const res = await fetch('/api/documents', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -434,7 +441,7 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                         title,
                         category,
                         content: '',
-                        folder_id: targetFolderId,
+                        folder_id: targetFolderId || null,
                         responsavel: responsavel || null,
                         data_revisao: null,
                         file_url: publicUrl,
@@ -444,30 +451,28 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                 });
 
                 if (!res.ok) {
-                    const errorJson = await res.json().catch(() => ({}));
-                    throw new Error(errorJson.error || 'Falha ao salvar no banco de dados');
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `HTTP ${res.status}`);
                 }
 
                 currentProgress[i].status = 'success';
             } catch (err: any) {
-                console.error(err);
+                console.error(`[upload] "${relativePath}":`, err);
                 currentProgress[i].status = 'error';
                 currentProgress[i].errorMsg = err.message || 'Erro inesperado';
             }
+
             setProgress([...currentProgress]);
         }
 
         onSave();
         setSaving(false);
-        const hasErrors = currentProgress.some(p => p.status === 'error');
-        if (!hasErrors) {
-            onClose();
-        }
+        if (!currentProgress.some(p => p.status === 'error')) onClose();
     };
 
     return (
         <div className="modal-overlay">
-            <div className="modal" style={{ maxWidth: 500 }}>
+            <div className="modal" style={{ maxWidth: 520 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                     <h2 className="modal-title" style={{ marginBottom: 0 }}>Upload em Lote</h2>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}><X size={18} /></button>
@@ -490,17 +495,15 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                         <label>Selecionar Conteúdo</label>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                             <button
-                                type="button"
-                                className="btn btn-ghost"
+                                type="button" className="btn btn-ghost"
                                 onClick={() => !saving && fileInputRef.current?.click()}
                                 disabled={saving}
                                 style={{ gap: 8, fontSize: 12, height: 36 }}
                             >
-                                <Paperclip size={14} /> Arquivos
+                                <Paperclip size={14} /> Arquivos Soltos
                             </button>
                             <button
-                                type="button"
-                                className="btn btn-ghost"
+                                type="button" className="btn btn-ghost"
                                 onClick={() => !saving && folderInputRef.current?.click()}
                                 disabled={saving}
                                 style={{ gap: 8, fontSize: 12, height: 36 }}
@@ -508,6 +511,7 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                                 <FolderIcon size={14} /> Pasta Inteira
                             </button>
                         </div>
+
                         <div
                             onDragEnter={handleDrag}
                             onDragOver={handleDrag}
@@ -516,60 +520,66 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                             style={{
                                 border: dragActive ? '2px dashed var(--accent)' : '1px dashed var(--border-mid)',
                                 borderRadius: 'var(--radius)',
-                                padding: '24px 16px',
+                                padding: '28px 16px',
                                 background: dragActive ? 'rgba(0,212,170,0.06)' : 'var(--bg-overlay)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 10,
+                                display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', justifyContent: 'center',
+                                gap: 8, fontSize: 13, transition: 'all 0.2s',
+                                textAlign: 'center', minHeight: 120,
                                 color: files.length > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                fontSize: 13,
-                                transition: 'all 0.2s',
-                                textAlign: 'center',
-                                minHeight: 120,
-                                cursor: 'pointer'
+                                cursor: 'default',
                             }}
-                            onClick={() => !saving && fileInputRef.current?.click()}
                         >
-                            <Upload size={24} color="var(--accent)" />
+                            <Upload size={26} color={dragActive ? 'var(--accent)' : 'var(--text-muted)'} />
                             {files.length > 0 ? (
-                                <span><strong>{files.length} arquivos</strong> selecionados</span>
+                                <span><strong>{files.length} arquivo{files.length !== 1 ? 's' : ''}</strong> na fila</span>
                             ) : (
-                                <span>Arraste arquivos/pastas ou <strong>clique para navegar</strong></span>
+                                <>
+                                    <span style={{ fontWeight: 500 }}>Arraste arquivos <strong style={{ color: 'var(--accent)' }}>ou pastas inteiras</strong> aqui</span>
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Suporta múltiplos níveis de subpastas</span>
+                                </>
                             )}
                         </div>
+
                         <input type="file" ref={fileInputRef} multiple style={{ display: 'none' }} onChange={handleFileChange} disabled={saving} />
-                        <input 
-                            type="file" 
-                            ref={folderInputRef} 
-                            webkitdirectory=""
-                            directory=""
-                            multiple 
-                            style={{ display: 'none' }} 
-                            onChange={handleFileChange} 
-                            disabled={saving} 
+                        <input
+                            type="file" ref={folderInputRef}
+                            webkitdirectory="" directory="" multiple
+                            style={{ display: 'none' }}
+                            onChange={handleFileChange} disabled={saving}
                         />
                     </div>
 
                     {files.length > 0 && (
-                        <div style={{ maxHeight: 180, overflowY: 'auto', marginBottom: 20, border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', background: 'var(--bg-elevated)' }}>
+                        <div style={{ maxHeight: 190, overflowY: 'auto', marginBottom: 20, border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', background: 'var(--bg-elevated)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>Fila de Envio ({files.length}):</span>
-                                <button type="button" className="btn btn-ghost" onClick={() => { setFiles([]); setProgress([]); }} disabled={saving} style={{ height: 20, padding: '0 6px', fontSize: 10, color: 'var(--red)' }}>Limpar Tudo</button>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                    Fila ({files.length} arquivo{files.length !== 1 ? 's' : ''})
+                                </span>
+                                <button type="button" className="btn btn-ghost"
+                                    onClick={() => { setFiles([]); setProgress([]); }}
+                                    disabled={saving}
+                                    style={{ height: 20, padding: '0 6px', fontSize: 10, color: 'var(--red)' }}
+                                >
+                                    Limpar Tudo
+                                </button>
                             </div>
                             {progress.map((p, idx) => (
-                                <div key={idx} style={{ padding: '6px 0', borderBottom: idx < progress.length - 1 ? '1px solid var(--border-mid)' : 'none' }}>
+                                <div key={idx} style={{ padding: '5px 0', borderBottom: idx < progress.length - 1 ? '1px solid var(--border-mid)' : 'none' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%', color: 'var(--text-primary)' }}>{p.name}</span>
+                                        <span
+                                            title={p.name}
+                                            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '72%', color: 'var(--text-primary)' }}
+                                        >
+                                            {p.name}
+                                        </span>
                                         <span style={{
-                                            fontSize: 10,
-                                            fontWeight: 600,
+                                            fontSize: 10, fontWeight: 600,
                                             color: p.status === 'success' ? 'var(--green)' : p.status === 'error' ? 'var(--red)' : p.status === 'uploading' ? 'var(--accent)' : 'var(--text-muted)'
                                         }}>
-                                            {p.status === 'success' && 'Concluído'}
-                                            {p.status === 'error' && 'Erro'}
-                                            {p.status === 'uploading' && 'Enviando...'}
+                                            {p.status === 'success' && '✓ Concluído'}
+                                            {p.status === 'error' && '✕ Erro'}
+                                            {p.status === 'uploading' && '↑ Enviando...'}
                                             {p.status === 'pending' && 'Pendente'}
                                         </span>
                                     </div>
@@ -586,7 +596,10 @@ function BulkUploadModal({ onClose, onSave, folderId }: { onClose: () => void; o
                     <div className="modal-footer">
                         <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
                         <button type="submit" className="btn btn-primary" disabled={saving || files.length === 0}>
-                            {saving ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} /> : `Subir ${files.length} Itens`}
+                            {saving
+                                ? <Loader2 size={15} style={{ animation: 'spin 0.7s linear infinite' }} />
+                                : `Subir ${files.length} Ite${files.length !== 1 ? 'ns' : 'm'}`
+                            }
                         </button>
                     </div>
                 </form>
