@@ -13,14 +13,12 @@ import styles from './Sidebar.module.css';
 
 const nav = [
     { href: '/',               label: 'Dashboard',      icon: LayoutDashboard },
-    { href: '/inventario',     label: 'Inventário',     icon: Package         },
     { href: '/backups',        label: 'Backups',        icon: HardDrive       },
     { href: '/licencas',       label: 'Licenças',       icon: Shield          },
     { href: '/infosec',        label: 'InfoSec',        icon: ShieldCheck     },
     { href: '/documentacoes',  label: 'Documentações',  icon: FileText        },
     { href: '/archive',        label: 'Archive',        icon: Archive         },
     { href: '/suppliers',      label: 'Suppliers',      icon: Building2       },
-    { href: '/infraestrutura', label: 'Infraestrutura', icon: Server          },
     { href: '/administracao',  label: 'Administração',  icon: Settings        },
 ];
 
