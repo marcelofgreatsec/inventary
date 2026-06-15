@@ -5,11 +5,12 @@ import Link from 'next/link';
 import {
     HardDrive, Shield, ShieldCheck, FileText, Archive,
     Building2, AlertTriangle, CheckCircle, TrendingUp,
-    DollarSign, Activity, RefreshCw, ArrowUpRight,
-    Zap, Settings, Sun, Moon, Wifi
+    DollarSign, Activity, RefreshCw, ArrowRight,
+    Settings, Sun, Moon, Wifi
 } from 'lucide-react';
 import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
+    BarChart, Bar, XAxis, YAxis, Tooltip,
+    ResponsiveContainer, Cell
 } from 'recharts';
 import styles from './Dashboard.module.css';
 
@@ -20,7 +21,7 @@ interface Stats {
     licenses: number; licensesCost: number;
     infra: number; infraOnline: number;
 }
-interface Log  { id: string; action: string; table_name: string; user_email?: string; created_at: string; }
+interface Log   { id: string; action: string; table_name: string; user_email?: string; created_at: string; }
 interface Alert { id: string; name: string; days: number; }
 interface CostData { name: string; value: number; }
 
@@ -32,35 +33,44 @@ function getGreeting() {
     return 'Boa noite';
 }
 
-const actionColor = (a: string) =>
-    a === 'CREATE' ? 'var(--green)' : a === 'DELETE' ? 'var(--red)' : 'var(--amber)';
+const ACTION_COLORS: Record<string, string> = {
+    CREATE: '#34d399',
+    DELETE: '#f87171',
+    UPDATE: '#fbbf24',
+};
+const ACTION_LABELS: Record<string, string> = {
+    CREATE: 'criou',
+    DELETE: 'removeu',
+    UPDATE: 'editou',
+};
 
-const actionLabel = (a: string) =>
-    a === 'CREATE' ? 'criou' : a === 'DELETE' ? 'removeu' : 'editou';
-
-/* ── Module tiles config ── */
-const MODULES = [
-    { href: '/backups',       label: 'Backups',       sub: 'Proteção de dados',       icon: HardDrive,  color: 'var(--accent)',  glow: 'rgba(0,212,170,0.12)'  },
-    { href: '/licencas',      label: 'Licenças',      sub: 'Software & Compliance',   icon: Shield,     color: 'var(--blue)',    glow: 'rgba(74,143,255,0.12)' },
-    { href: '/infosec',       label: 'InfoSec',       sub: 'Segurança',               icon: ShieldCheck, color: 'var(--purple)', glow: 'rgba(167,139,250,0.12)'},
-    { href: '/documentacoes', label: 'Docs',          sub: 'Base de conhecimento',    icon: FileText,   color: 'var(--amber)',   glow: 'rgba(245,158,11,0.12)' },
-    { href: '/archive',       label: 'Archive',       sub: 'Usuários desligados',     icon: Archive,    color: 'var(--red)',     glow: 'rgba(244,63,94,0.12)'  },
-    { href: '/suppliers',     label: 'Suppliers',     sub: 'Fornecedores',            icon: Building2,  color: 'var(--green)',   glow: 'rgba(34,214,105,0.12)' },
-    { href: '/administracao', label: 'Admin',         sub: 'Configurações do sistema', icon: Settings,  color: 'var(--text-secondary)', glow: 'rgba(120,148,180,0.10)'},
+const CHART_COLORS = [
+    '#00d4aa','#60a5fa','#a78bfa','#fbbf24','#f87171','#34d399','#fb923c','#e879f9',
 ];
 
-/* ── Custom chart tooltip ── */
+/* ── Module list ── */
+const MODULES = [
+    { href: '/backups',       icon: HardDrive,  label: 'Backups',       sub: 'Proteção de dados',       color: '#00d4aa' },
+    { href: '/licencas',      icon: Shield,     label: 'Licenças',      sub: 'Software & Compliance',   color: '#60a5fa' },
+    { href: '/infosec',       icon: ShieldCheck,label: 'InfoSec',       sub: 'Segurança',               color: '#a78bfa' },
+    { href: '/documentacoes', icon: FileText,   label: 'Docs',          sub: 'Base de conhecimento',    color: '#fbbf24' },
+    { href: '/archive',       icon: Archive,    label: 'Archive',       sub: 'Usuários desligados',     color: '#f87171' },
+    { href: '/suppliers',     icon: Building2,  label: 'Suppliers',     sub: 'Fornecedores',            color: '#34d399' },
+    { href: '/administracao', icon: Settings,   label: 'Admin',         sub: 'Configurações',           color: '#94a3b8' },
+];
+
+/* ── Chart tooltip ── */
 const ChartTooltip = ({ active, payload, label, fmt }: any) => {
     if (!active || !payload?.length) return null;
     return (
         <div style={{
-            background: 'var(--bg-elevated)', border: '1px solid var(--border-mid)',
-            borderRadius: 8, padding: '10px 14px', boxShadow: 'var(--shadow)',
-            fontSize: 12, fontFamily: 'JetBrains Mono, monospace',
+            background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
+            borderRadius: 8, padding: '10px 14px',
+            boxShadow: 'var(--shadow)', fontSize: 12,
         }}>
-            {label && <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>}
+            {label && <div style={{ color: 'var(--text-secondary)', marginBottom: 4, fontSize: 11 }}>{label}</div>}
             {payload.map((p: any, i: number) => (
-                <div key={i} style={{ color: p.color || 'var(--accent)' }}>
+                <div key={i} style={{ color: p.color || 'var(--accent)', fontWeight: 600 }}>
                     {fmt ? fmt(p.value) : p.value}
                 </div>
             ))}
@@ -71,16 +81,18 @@ const ChartTooltip = ({ active, payload, label, fmt }: any) => {
 /* ── Skeleton KPI ── */
 function SkeletonKpi() {
     return (
-        <div className={`card ${styles.kpi} ${styles.skeletonKpi}`}>
-            <div className="skeleton" style={{ width: 44, height: 44, borderRadius: 12, marginBottom: 16 }} />
-            <div className="skeleton" style={{ width: '50%', height: 36, borderRadius: 6, marginBottom: 8 }} />
-            <div className="skeleton" style={{ width: '70%', height: 12, borderRadius: 4, marginBottom: 3 }} />
-            <div className="skeleton" style={{ width: '45%', height: 11, borderRadius: 4 }} />
+        <div className={`card ${styles.kpiCard}`}>
+            <div className="skeleton" style={{ width: 40, height: 40, borderRadius: 10, marginBottom: 20 }} />
+            <div className="skeleton" style={{ width: '55%', height: 32, borderRadius: 6, marginBottom: 8 }} />
+            <div className="skeleton" style={{ width: '70%', height: 12, borderRadius: 4, marginBottom: 4 }} />
+            <div className="skeleton" style={{ width: '42%', height: 11, borderRadius: 4 }} />
         </div>
     );
 }
 
-/* ── Main component ── */
+/* ════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════ */
 export default function Dashboard() {
     const [stats,     setStats]     = useState<Stats | null>(null);
     const [logs,      setLogs]      = useState<Log[]>([]);
@@ -154,7 +166,7 @@ export default function Dashboard() {
                 Object.entries(costs)
                     .map(([name, value]) => ({ name, value: value as number }))
                     .sort((a, b) => b.value - a.value)
-                    .slice(0, 8)
+                    .slice(0, 7)
             );
 
             setLogs(Array.isArray(logsData) ? logsData.slice(0, 8) : []);
@@ -179,18 +191,18 @@ export default function Dashboard() {
 
     const kpis = useMemo(() => stats ? [
         {
-            label: 'Saúde de Backup',
+            label: 'Backups',
             value: stats.backups,
-            sub: stats.backupsFail > 0 ? `${stats.backupsFail} falha(s) crítica(s)` : 'Todos protegidos',
+            sub: stats.backupsFail > 0 ? `${stats.backupsFail} falha(s) detectada(s)` : 'Todos os backups íntegros',
             icon: HardDrive,
             color: stats.backupsFail > 0 ? 'var(--red)' : 'var(--accent)',
             ok: stats.backupsFail === 0,
             perc: stats.backups > 0 ? ((stats.backups - stats.backupsFail) / stats.backups) * 100 : 0,
         },
         {
-            label: 'Licenças Ativas',
+            label: 'Licenças',
             value: stats.licenses,
-            sub: alerts.length > 0 ? `${alerts.length} vencem em 30d` : 'Todas em dia',
+            sub: alerts.length > 0 ? `${alerts.length} vencem em 30 dias` : 'Nenhum vencimento próximo',
             icon: Shield,
             color: 'var(--blue)',
             ok: alerts.length === 0,
@@ -199,7 +211,7 @@ export default function Dashboard() {
         {
             label: 'Custo Mensal',
             value: fmt(stats.licensesCost),
-            sub: 'Total em licenças',
+            sub: 'Total em licenças ativas',
             icon: DollarSign,
             color: 'var(--amber)',
             ok: true,
@@ -208,11 +220,11 @@ export default function Dashboard() {
         {
             label: 'Disponibilidade',
             value: stats.infra > 0 ? `${Math.round((stats.infraOnline / stats.infra) * 100)}%` : '—',
-            sub: stats.infra > 0 ? `${stats.infraOnline}/${stats.infra} online` : 'Sem registros',
+            sub: stats.infra > 0 ? `${stats.infraOnline} de ${stats.infra} online` : 'Sem registros de infraestrutura',
             icon: Wifi,
-            color: (stats.infraOnline === stats.infra || stats.infra === 0) ? 'var(--green)' : 'var(--red)',
-            ok: stats.infraOnline === stats.infra || stats.infra === 0,
-            perc: stats.infra > 0 ? (stats.infraOnline / stats.infra) * 100 : 0,
+            color: (stats.infra === 0 || stats.infraOnline === stats.infra) ? 'var(--green)' : 'var(--red)',
+            ok: stats.infra === 0 || stats.infraOnline === stats.infra,
+            perc: stats.infra > 0 ? (stats.infraOnline / stats.infra) * 100 : 100,
         },
     ] : [], [stats, alerts.length, fmt]);
 
@@ -221,85 +233,89 @@ export default function Dashboard() {
     return (
         <div className={styles.root}>
 
-            {/* ── Error banner ── */}
+            {/* ── Error ── */}
             {error && (
                 <div className={styles.errorBanner}>
-                    <AlertTriangle size={15} color="var(--red)" />
-                    <span>Falha ao carregar dados do painel.</span>
-                    <button className="btn btn-ghost" style={{ fontSize: 12, marginLeft: 'auto' }} onClick={load}>
+                    <AlertTriangle size={15} />
+                    <span>Falha ao carregar dados.</span>
+                    <button className="btn btn-ghost" onClick={load} style={{ marginLeft: 'auto', fontSize: 12 }}>
                         Tentar novamente
                     </button>
                 </div>
             )}
 
-            {/* ── Hero ── */}
+            {/* ═══════════════ HERO ═══════════════ */}
             <div className={styles.hero}>
-                <div className={styles.heroBg} aria-hidden="true" />
-                <div className={styles.heroContent}>
-                    <div className={styles.heroLeft}>
-                        <div className={styles.heroGreeting}>
-                            {isDayTime
-                                ? <Sun size={20} color="var(--amber)" strokeWidth={1.8} />
-                                : <Moon size={20} color="var(--blue)" strokeWidth={1.8} />
-                            }
-                            <span>{getGreeting()},</span>
-                            <strong className={styles.heroName}>{user || '...'}</strong>
-                        </div>
-                        <div className={styles.heroDate}>
+                <div className={styles.heroLeft}>
+                    <div className={styles.heroIcon}>
+                        {isDayTime
+                            ? <Sun size={18} strokeWidth={1.8} />
+                            : <Moon size={18} strokeWidth={1.8} />
+                        }
+                    </div>
+                    <div>
+                        <h2 className={styles.heroGreeting}>
+                            {getGreeting()}, <span className={styles.heroName}>{user || '...'}</span>
+                        </h2>
+                        <p className={styles.heroDate}>
                             {now.toLocaleDateString('pt-BR', {
                                 weekday: 'long', day: 'numeric',
                                 month: 'long', year: 'numeric',
                             })}
-                        </div>
+                        </p>
                     </div>
-                    <div className={styles.heroRight}>
-                        <div className={styles.systemStatus}>
-                            <div className={styles.statusDot} />
-                            <span>Sistema Operacional</span>
-                        </div>
-                        <button
-                            className="btn btn-primary"
-                            onClick={load}
-                            disabled={isSyncing}
-                            style={{ fontSize: 12 }}
-                        >
-                            <RefreshCw size={13} className={isSyncing ? styles.syncing : ''} />
-                            {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
-                        </button>
+                </div>
+                <div className={styles.heroRight}>
+                    <div className={styles.onlinePill}>
+                        <span className={styles.onlineDot} />
+                        Sistema Operacional
                     </div>
+                    <button
+                        className={`btn btn-primary ${styles.syncBtn}`}
+                        onClick={load}
+                        disabled={isSyncing}
+                    >
+                        <RefreshCw size={13} className={isSyncing ? styles.syncing : ''} strokeWidth={2} />
+                        {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+                    </button>
                 </div>
             </div>
 
-            {/* ── KPI Grid ── */}
+            {/* ═══════════════ KPIs ═══════════════ */}
             <div className={styles.kpiGrid}>
                 {loading
                     ? Array.from({ length: 4 }).map((_, i) => <SkeletonKpi key={i} />)
                     : kpis.map((k) => (
                         <div
                             key={k.label}
-                            className={`card ${styles.kpi}`}
-                            style={{ '--card-color': k.color } as React.CSSProperties}
+                            className={`card ${styles.kpiCard}`}
+                            style={{ '--kpi-color': k.color } as React.CSSProperties}
                         >
-                            <div className={styles.kpiHeader}>
-                                <div className={styles.kpiIcon} style={{
-                                    background: `color-mix(in srgb, ${k.color} 12%, transparent)`,
-                                    border: `1px solid color-mix(in srgb, ${k.color} 22%, transparent)`,
+                            {/* Colored top accent line */}
+                            <div className={styles.kpiAccent} style={{ background: k.color }} />
+
+                            <div className={styles.kpiTop}>
+                                <div className={styles.kpiIconWrap} style={{
+                                    background: `color-mix(in srgb, ${k.color} 10%, transparent)`,
+                                    border: `1px solid color-mix(in srgb, ${k.color} 20%, transparent)`,
                                 }}>
-                                    <k.icon size={20} color={k.color} strokeWidth={1.8} />
+                                    <k.icon size={18} color={k.color} strokeWidth={1.8} />
                                 </div>
                                 <span className={`badge ${k.ok ? 'badge-green' : 'badge-red'}`}>
-                                    {k.ok ? '● OK' : '● ALERTA'}
+                                    {k.ok ? 'Normal' : 'Alerta'}
                                 </span>
                             </div>
+
                             <div className={styles.kpiValue} style={{ color: k.color }}>
                                 {k.value}
                             </div>
                             <div className={styles.kpiLabel}>{k.label}</div>
                             <div className={styles.kpiSub}>{k.sub}</div>
-                            <div className={styles.kpiBar}>
+
+                            <div className={styles.kpiProgress}>
                                 <div
-                                    className={styles.kpiBarFill}
-                                    style={{ background: k.color, width: `${k.perc}%` }}
+                                    className={styles.kpiProgressFill}
+                                    style={{ width: `${k.perc}%`, background: k.color }}
                                 />
                             </div>
                         </div>
@@ -307,52 +323,48 @@ export default function Dashboard() {
                 }
             </div>
 
-            {/* ── Module tiles ── */}
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
-                    <Zap size={13} color="var(--accent)" strokeWidth={2.5} />
-                    <span>Acesso Rápido</span>
-                </div>
+            {/* ═══════════════ MODULES ═══════════════ */}
+            <section>
+                <p className={styles.sectionLabel}>Módulos</p>
                 <div className={styles.moduleGrid}>
                     {MODULES.map((m, i) => (
                         <Link
                             key={m.href}
                             href={m.href}
-                            className={styles.moduleTile}
-                            style={{
-                                '--tile-color': m.color,
-                                '--tile-glow': m.glow,
-                                animationDelay: `${0.04 + i * 0.04}s`,
-                            } as React.CSSProperties}
+                            className={`card ${styles.moduleTile}`}
+                            style={{ animationDelay: `${0.05 + i * 0.04}s` } as React.CSSProperties}
                         >
-                            <div className={styles.tileIcon} style={{
-                                background: m.glow,
-                                border: `1px solid color-mix(in srgb, ${m.color} 28%, transparent)`,
-                            }}>
+                            <div
+                                className={styles.moduleIcon}
+                                style={{
+                                    background: `${m.color}14`,
+                                    border: `1px solid ${m.color}28`,
+                                }}
+                            >
                                 <m.icon size={16} color={m.color} strokeWidth={1.8} />
                             </div>
-                            <div className={styles.tileBody}>
-                                <span className={styles.tileLabel}>{m.label}</span>
-                                <span className={styles.tileSub}>{m.sub}</span>
+                            <div className={styles.moduleBody}>
+                                <span className={styles.moduleLabel}>{m.label}</span>
+                                <span className={styles.moduleSub}>{m.sub}</span>
                             </div>
-                            <ArrowUpRight size={13} className={styles.tileArrow} color={m.color} />
+                            <ArrowRight size={14} className={styles.moduleArrow} />
                         </Link>
                     ))}
                 </div>
-            </div>
+            </section>
 
-            {/* ── Charts + Activity feed ── */}
+            {/* ═══════════════ CHART + FEED ═══════════════ */}
             {!loading && (
-                <div className={styles.mainGrid}>
+                <div className={styles.analysisGrid}>
 
-                    {/* Cost bar chart */}
+                    {/* Cost chart */}
                     <div className={`card ${styles.chartCard}`}>
                         <div className={styles.cardHeader}>
-                            <TrendingUp size={14} color="var(--blue)" strokeWidth={1.8} />
-                            <span className={styles.cardTitle}>Custos por Fornecedor</span>
+                            <TrendingUp size={15} color="var(--blue)" strokeWidth={1.8} />
+                            <h3 className={styles.cardTitle}>Custos por Fornecedor</h3>
                             {costData.length > 0 && (
-                                <span className="badge badge-blue" style={{ marginLeft: 'auto', fontSize: 9 }}>
-                                    {costData.length} fornecedor{costData.length > 1 ? 'es' : ''}
+                                <span className="badge badge-blue" style={{ marginLeft: 'auto' }}>
+                                    {costData.length} fornecedores
                                 </span>
                             )}
                         </div>
@@ -362,42 +374,37 @@ export default function Dashboard() {
                                     <BarChart
                                         data={costData}
                                         layout="vertical"
-                                        margin={{ left: 0, right: 14, top: 4, bottom: 4 }}
+                                        margin={{ left: 0, right: 12, top: 2, bottom: 2 }}
                                     >
                                         <XAxis
                                             type="number"
-                                            tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'JetBrains Mono' }}
+                                            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
                                             tickFormatter={(v: number) => fmt(v)}
-                                            axisLine={false}
-                                            tickLine={false}
+                                            axisLine={false} tickLine={false}
                                         />
                                         <YAxis
                                             dataKey="name"
                                             type="category"
-                                            width={106}
-                                            tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontFamily: 'Inter' }}
-                                            axisLine={false}
-                                            tickLine={false}
+                                            width={100}
+                                            tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                                            axisLine={false} tickLine={false}
                                         />
                                         <Tooltip
                                             content={<ChartTooltip fmt={fmt} />}
-                                            cursor={{ fill: 'rgba(0,212,170,0.04)' }}
+                                            cursor={{ fill: 'var(--bg-elevated)' }}
                                         />
-                                        <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                                        <Bar dataKey="value" radius={[0, 5, 5, 0]} maxBarSize={20}>
                                             {costData.map((_, i) => (
-                                                <Cell
-                                                    key={i}
-                                                    fill={`hsl(${188 + i * 10}, 75%, ${54 - i * 2}%)`}
-                                                />
+                                                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                                             ))}
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         ) : (
-                            <div className={styles.emptyState}>
-                                <TrendingUp size={28} style={{ opacity: 0.12 }} />
-                                <span>Sem dados financeiros</span>
+                            <div className={styles.emptyChart}>
+                                <TrendingUp size={28} strokeWidth={1} />
+                                <p>Sem dados financeiros</p>
                             </div>
                         )}
                     </div>
@@ -405,89 +412,81 @@ export default function Dashboard() {
                     {/* Activity feed */}
                     <div className={`card ${styles.feedCard}`}>
                         <div className={styles.cardHeader}>
-                            <Activity size={14} color="var(--accent)" strokeWidth={1.8} />
-                            <span className={styles.cardTitle}>Atividade Recente</span>
-                            {logs.length > 0 && (
-                                <span className="badge badge-blue" style={{ marginLeft: 'auto', fontSize: 9 }}>
-                                    {logs.length}
-                                </span>
-                            )}
+                            <Activity size={15} color="var(--accent)" strokeWidth={1.8} />
+                            <h3 className={styles.cardTitle}>Atividade Recente</h3>
                         </div>
                         {logs.length === 0 ? (
-                            <div className={styles.emptyState}>
-                                <Activity size={28} style={{ opacity: 0.12 }} />
-                                <span>Nenhuma atividade</span>
+                            <div className={styles.emptyChart}>
+                                <Activity size={28} strokeWidth={1} />
+                                <p>Sem atividade registrada</p>
                             </div>
                         ) : (
-                            <div className={styles.feedList}>
-                                {logs.map((l, i) => (
-                                    <div
-                                        key={l.id}
-                                        className={styles.feedItem}
-                                        style={{ animationDelay: `${i * 0.04}s` }}
-                                    >
-                                        <div
-                                            className={styles.feedDot}
-                                            style={{ background: actionColor(l.action) }}
-                                        />
-                                        <div className={styles.feedContent}>
-                                            <div className={styles.feedText}>
-                                                <span style={{ color: actionColor(l.action), fontWeight: 600 }}>
-                                                    {actionLabel(l.action)}
-                                                </span>{' '}
-                                                <span className={styles.feedModule}>{l.table_name}</span>
-                                            </div>
-                                            <div className={styles.feedMeta}>
-                                                <span>{l.user_email?.split('@')[0] ?? '—'}</span>
-                                                <span className={styles.feedMetaSep}>·</span>
-                                                <span>
+                            <ul className={styles.feedList}>
+                                {logs.map((l, i) => {
+                                    const col = ACTION_COLORS[l.action] ?? 'var(--text-muted)';
+                                    return (
+                                        <li
+                                            key={l.id}
+                                            className={styles.feedItem}
+                                            style={{ animationDelay: `${i * 0.04}s` } as React.CSSProperties}
+                                        >
+                                            <span className={styles.feedDot} style={{ background: col }} />
+                                            <div className={styles.feedContent}>
+                                                <p className={styles.feedText}>
+                                                    <span style={{ color: col, fontWeight: 600 }}>
+                                                        {ACTION_LABELS[l.action] ?? l.action.toLowerCase()}
+                                                    </span>{' '}
+                                                    <span className={styles.feedTable}>{l.table_name}</span>
+                                                </p>
+                                                <p className={styles.feedMeta}>
+                                                    {l.user_email?.split('@')[0]}
+                                                    <span className={styles.feedSep}>·</span>
                                                     {new Date(l.created_at).toLocaleString('pt-BR', {
                                                         day: '2-digit', month: '2-digit',
                                                         hour: '2-digit', minute: '2-digit',
                                                     })}
-                                                </span>
+                                                </p>
                                             </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
                         )}
                     </div>
 
                 </div>
             )}
 
-            {/* ── License alerts ── */}
+            {/* ═══════════════ ALERTS ═══════════════ */}
             {!loading && alerts.length > 0 && (
                 <div className={`card ${styles.alertsCard}`}>
                     <div className={styles.cardHeader}>
-                        <AlertTriangle size={14} color="var(--red)" strokeWidth={1.8} />
-                        <span className={styles.cardTitle}>Licenças Vencendo em 30 Dias</span>
-                        <span className="badge badge-red" style={{ marginLeft: 'auto', fontSize: 9 }}>
-                            {alerts.length} alerta{alerts.length > 1 ? 's' : ''}
+                        <AlertTriangle size={15} color="var(--red)" strokeWidth={1.8} />
+                        <h3 className={styles.cardTitle}>Licenças Vencendo em 30 Dias</h3>
+                        <span className="badge badge-red" style={{ marginLeft: 'auto' }}>
+                            {alerts.length} alertas
                         </span>
                     </div>
                     <div className={styles.alertsGrid}>
                         {alerts.map(a => (
                             <div key={a.id} className={styles.alertItem}>
-                                <div className={styles.alertDot} />
+                                <span className={styles.alertDot} />
                                 <span className={styles.alertName}>{a.name}</span>
                                 <span className={styles.alertDays}>{a.days}d</span>
                             </div>
                         ))}
                     </div>
-                    <Link href="/licencas" className={styles.alertCta}>
-                        Ver todas as licenças
-                        <ArrowUpRight size={13} />
+                    <Link href="/licencas" className={styles.alertLink}>
+                        Gerenciar licenças <ArrowRight size={13} />
                     </Link>
                 </div>
             )}
 
-            {/* ── All clear (no alerts) ── */}
+            {/* ═══════════════ ALL CLEAR ═══════════════ */}
             {!loading && alerts.length === 0 && stats !== null && (
                 <div className={`card ${styles.allClear}`}>
-                    <CheckCircle size={16} color="var(--green)" strokeWidth={1.8} />
-                    <span>Nenhum alerta de vencimento para os próximos 30 dias</span>
+                    <CheckCircle size={15} color="var(--green)" strokeWidth={1.8} />
+                    <span>Nenhum alerta de vencimento nos próximos 30 dias.</span>
                 </div>
             )}
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import styles from './Navbar.module.css';
 
@@ -20,19 +20,33 @@ export default function Navbar({ userEmail }: { userEmail?: string }) {
     const pathname = usePathname();
     const title    = titles[pathname] ?? 'Sistema';
     const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : '??';
-    const [time, setTime] = useState('');
-    const [date, setDate] = useState('');
+
+    const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+    const [time,  setTime]  = useState('');
+    const [date,  setDate]  = useState('');
+
+    useEffect(() => {
+        const stored = document.documentElement.getAttribute('data-theme') as 'dark' | 'light';
+        if (stored) setTheme(stored);
+    }, []);
 
     useEffect(() => {
         const update = () => {
-            const now = new Date();
-            setTime(now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-            setDate(now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
+            const n = new Date();
+            setTime(n.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+            setDate(n.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
         };
         update();
-        const t = setInterval(update, 30000);
+        const t = setInterval(update, 30_000);
         return () => clearInterval(t);
     }, []);
+
+    const toggleTheme = () => {
+        const next: 'dark' | 'light' = theme === 'dark' ? 'light' : 'dark';
+        setTheme(next);
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('theme', next); } catch { /* ignore */ }
+    };
 
     const toggleSidebar = () => {
         document.dispatchEvent(new CustomEvent('toggle-sidebar'));
@@ -41,33 +55,47 @@ export default function Navbar({ userEmail }: { userEmail?: string }) {
     return (
         <header className={styles.navbar}>
 
-            {/* Left: hamburger + breadcrumb */}
+            {/* Left */}
             <div className={styles.left}>
                 <button
                     className={styles.hamburger}
                     onClick={toggleSidebar}
-                    aria-label="Abrir menu de navegação"
+                    aria-label="Abrir menu"
                 >
                     <Menu size={16} />
                 </button>
-                <div className={styles.breadcrumb}>
+                <nav className={styles.breadcrumb} aria-label="breadcrumb">
                     <span className={styles.breadcrumbRoot}>Inventary</span>
-                    <span className={styles.breadcrumbSep}>/</span>
+                    <span className={styles.breadcrumbSep} aria-hidden>/</span>
                     <h1 className={styles.title}>{title}</h1>
-                </div>
+                </nav>
             </div>
 
-            {/* Right: datetime + bell + avatar */}
+            {/* Right */}
             <div className={styles.right}>
-                <div className={styles.clock}>
-                    <span className={styles.clockDate}>{date}</span>
-                    <span className={styles.clockSep}>·</span>
-                    <span className={styles.clockTime}>{time}</span>
+                <div className={styles.clock} aria-label="Data e hora">
+                    <span>{date}</span>
+                    <span className={styles.sep}>·</span>
+                    <span>{time}</span>
                 </div>
+
+                <button
+                    className={styles.iconBtn}
+                    onClick={toggleTheme}
+                    aria-label={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+                    title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+                >
+                    {theme === 'dark'
+                        ? <Sun size={15} strokeWidth={1.8} />
+                        : <Moon size={15} strokeWidth={1.8} />
+                    }
+                </button>
+
                 <button className={styles.iconBtn} aria-label="Notificações">
-                    <Bell size={15} />
+                    <Bell size={15} strokeWidth={1.8} />
                     <span className={styles.notifDot} />
                 </button>
+
                 <div className={styles.avatar} title={userEmail}>{initials}</div>
             </div>
 
