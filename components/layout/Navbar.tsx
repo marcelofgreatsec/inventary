@@ -8,6 +8,7 @@ import styles from './Navbar.module.css';
 const titles: Record<string, string> = {
     '/':               'Dashboard',
     '/backups':        'Backups',
+    '/vault':          'Vault',
     '/licencas':       'Licenças',
     '/infosec':        'InfoSec',
     '/documentacoes':  'Documentações',

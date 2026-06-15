@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
-    LayoutDashboard, HardDrive, Shield, ShieldCheck,
+    LayoutDashboard, HardDrive, Lock, ShieldCheck,
     FileText, Archive, Building2, Settings, LogOut,
     ChevronRight, X, Zap
 } from 'lucide-react';
@@ -22,7 +22,7 @@ const navGroups = [
         label: 'Operacional',
         items: [
             { href: '/backups',   label: 'Backups',   icon: HardDrive  },
-            { href: '/licencas',  label: 'Licenças',  icon: Shield     },
+            { href: '/vault',     label: 'Vault',     icon: Lock       },
             { href: '/archive',   label: 'Archive',   icon: Archive    },
             { href: '/suppliers', label: 'Suppliers', icon: Building2  },
         ],
