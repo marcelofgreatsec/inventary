@@ -2,25 +2,37 @@
 
 import { usePathname } from 'next/navigation';
 import { Bell, Menu } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import styles from './Navbar.module.css';
 
-const titles: Record<string, { label: string; prefix: string }> = {
-    '/':               { label: 'Dashboard',      prefix: 'Relatório Executivo'      },
-    '/inventario':     { label: 'Inventário',      prefix: 'Gestão de Ativos'        },
-    '/backups':        { label: 'Backups',         prefix: 'Gestão de Backups'       },
-    '/licencas':       { label: 'Licenças',        prefix: 'Software & Compliance'   },
-    '/infosec':        { label: 'InfoSec',         prefix: 'Segurança da Informação' },
-    '/documentacoes':  { label: 'Documentações',   prefix: 'Base de Conhecimento'    },
-    '/archive':        { label: 'Archive',         prefix: 'Usuários Desligados'     },
-    '/suppliers':      { label: 'Suppliers',       prefix: 'Fornecedores & Contatos' },
-    '/infraestrutura': { label: 'Infraestrutura',  prefix: 'Mapeamento de Rede'      },
-    '/administracao':  { label: 'Administração',   prefix: 'Configurações'           },
+const titles: Record<string, string> = {
+    '/':               'Dashboard',
+    '/backups':        'Backups',
+    '/licencas':       'Licenças',
+    '/infosec':        'InfoSec',
+    '/documentacoes':  'Documentações',
+    '/archive':        'Archive',
+    '/suppliers':      'Suppliers',
+    '/administracao':  'Administração',
 };
 
 export default function Navbar({ userEmail }: { userEmail?: string }) {
     const pathname = usePathname();
-    const page     = titles[pathname] ?? { label: 'Sistema', prefix: 'Inventary FGREAT' };
+    const title    = titles[pathname] ?? 'Sistema';
     const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : '??';
+    const [time, setTime] = useState('');
+    const [date, setDate] = useState('');
+
+    useEffect(() => {
+        const update = () => {
+            const now = new Date();
+            setTime(now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+            setDate(now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
+        };
+        update();
+        const t = setInterval(update, 30000);
+        return () => clearInterval(t);
+    }, []);
 
     const toggleSidebar = () => {
         document.dispatchEvent(new CustomEvent('toggle-sidebar'));
@@ -28,27 +40,37 @@ export default function Navbar({ userEmail }: { userEmail?: string }) {
 
     return (
         <header className={styles.navbar}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+
+            {/* Left: hamburger + breadcrumb */}
+            <div className={styles.left}>
                 <button
                     className={styles.hamburger}
                     onClick={toggleSidebar}
                     aria-label="Abrir menu de navegação"
                 >
-                    <Menu size={18} />
+                    <Menu size={16} />
                 </button>
-                <div className={styles.titleWrapper}>
-                    <span className={styles.titlePrefix}>{page.prefix}</span>
-                    <h1 className={styles.title}>{page.label}</h1>
+                <div className={styles.breadcrumb}>
+                    <span className={styles.breadcrumbRoot}>Inventary</span>
+                    <span className={styles.breadcrumbSep}>/</span>
+                    <h1 className={styles.title}>{title}</h1>
                 </div>
             </div>
 
-            <div className={styles.actions}>
+            {/* Right: datetime + bell + avatar */}
+            <div className={styles.right}>
+                <div className={styles.clock}>
+                    <span className={styles.clockDate}>{date}</span>
+                    <span className={styles.clockSep}>·</span>
+                    <span className={styles.clockTime}>{time}</span>
+                </div>
                 <button className={styles.iconBtn} aria-label="Notificações">
-                    <Bell size={17} />
+                    <Bell size={15} />
                     <span className={styles.notifDot} />
                 </button>
                 <div className={styles.avatar} title={userEmail}>{initials}</div>
             </div>
+
         </header>
     );
 }

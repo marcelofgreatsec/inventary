@@ -1,171 +1,215 @@
+/* ─────────────────────────────────────────────
+   NAVBAR
+───────────────────────────────────────────── */
+
 .navbar {
-  height: var(--navbar-h);
-  background: rgba(8, 11, 18, 0.85);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 28px;
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  transition: background 0.3s;
+    height: var(--navbar-h);
+    background: rgba(6, 8, 14, 0.92);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    gap: 16px;
 }
 
+/* Gradient bottom line */
 .navbar::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(0, 212, 170, 0.25) 25%,
-    rgba(74, 143, 255, 0.2) 75%,
-    transparent 100%);
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(0, 212, 170, 0.20) 30%,
+        rgba(74, 143, 255, 0.15) 70%,
+        transparent 100%);
+    pointer-events: none;
 }
 
-/* ── Hamburger ── */
+/* ── Left ── */
+.left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+/* Hamburger (mobile only) */
 .hamburger {
-  display: none;
-  width: 36px;
-  height: 36px;
-  background: var(--bg-overlay);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius);
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: all var(--transition);
-  margin-right: 14px;
+    display: none;
+    width: 34px;
+    height: 34px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--transition);
+    flex-shrink: 0;
 }
 
 .hamburger:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 12px var(--accent-glow);
+    border-color: var(--border-mid);
+    color: var(--text-primary);
+    background: var(--bg-elevated);
 }
 
 @media (max-width: 768px) {
-  .navbar  { padding: 0 16px; }
-  .hamburger { display: flex; }
+    .navbar     { padding: 0 16px; }
+    .hamburger  { display: flex; }
 }
 
-/* ── Title ── */
-.titleWrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* ── Breadcrumb ── */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.breadcrumbRoot {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.breadcrumbSep {
+    font-size: 15px;
+    color: var(--border-hover);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+    opacity: 0.5;
 }
 
 .title {
-  font-size: 15px;
-  font-weight: 700;
-  font-family: 'Outfit', sans-serif;
-  letter-spacing: 0.01em;
-  background: linear-gradient(135deg, var(--text-primary) 40%, var(--accent) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.titlePrefix {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 0.06em;
+/* ── Right ── */
+.right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
-/* ── Right actions ── */
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* ── Clock display ── */
+.clock {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 0 12px 0 0;
+    border-right: 1px solid var(--border);
+    margin-right: 2px;
 }
 
+.clockDate {
+    color: var(--text-muted);
+    text-transform: capitalize;
+    letter-spacing: 0.02em;
+}
+
+.clockSep {
+    color: var(--border-hover);
+    opacity: 0.5;
+}
+
+.clockTime {
+    color: var(--text-secondary);
+    letter-spacing: 0.04em;
+}
+
+@media (max-width: 600px) {
+    .clock { display: none; }
+}
+
+/* ── Icon buttons ── */
 .iconBtn {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  background: rgba(19, 23, 32, 0.8);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: all var(--transition);
-  backdrop-filter: blur(8px);
+    position: relative;
+    width: 34px;
+    height: 34px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--transition);
 }
 
 .iconBtn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 12px var(--accent-glow);
-  transform: translateY(-1px);
+    border-color: var(--border-mid);
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    transform: translateY(-1px);
 }
 
 /* Notification dot */
 .notifDot {
-  position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 6px;
-  height: 6px;
-  background: var(--red);
-  border-radius: 50%;
-  border: 1.5px solid var(--bg-surface);
-  box-shadow: 0 0 6px var(--red-glow);
-  animation: pulseDot 2s ease-in-out infinite;
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 5px;
+    height: 5px;
+    background: var(--red);
+    border-radius: 50%;
+    border: 1.5px solid var(--bg-surface);
+    box-shadow: 0 0 5px var(--red-glow);
+    animation: pulseDot 2s ease-in-out infinite;
 }
 
 /* ── Avatar ── */
 .avatar {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.18), rgba(74, 143, 255, 0.12));
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--accent);
-  cursor: default;
-  font-family: 'JetBrains Mono', monospace;
-  position: relative;
-  overflow: hidden;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg,
+        rgba(0, 212, 170, 0.15),
+        rgba(74, 143, 255, 0.10));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--accent);
+    cursor: default;
+    font-family: 'JetBrains Mono', monospace;
+    position: relative;
+    overflow: hidden;
 }
 
+/* Gradient border via mask */
 .avatar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, var(--accent), var(--blue));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* Legacy .badge class (used in old Navbar) — map to notifDot style */
-.badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 6px;
-  height: 6px;
-  background: var(--red);
-  border-radius: 50%;
-  border: 1.5px solid var(--bg-surface);
-  box-shadow: 0 0 6px var(--red-glow);
-  animation: pulseDot 2s ease-in-out infinite;
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--accent), var(--blue));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
 }
