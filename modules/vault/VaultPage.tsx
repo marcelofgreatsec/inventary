@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
-import { Search, X, Eye, EyeOff, Copy, Check, KeyRound, Lock } from 'lucide-react';
+import { Search, X, Eye, EyeOff, Copy, Check, KeyRound, Lock, ChevronRight } from 'lucide-react';
 
 interface License {
     id: string; name: string; vendor: string; type: string;
@@ -51,7 +51,7 @@ function CopyBtn({ text }: { text: string }) {
 /* ── Credentials drawer ────────────────────────────────── */
 function CredDrawer({ license, onClose }: { license: License; onClose: () => void }) {
     const [showPass, setShowPass] = useState(false);
-    const color = CAT_COLOR[license.categoria || 'Other'] ?? CAT_COLOR['Other'];
+    const color    = CAT_COLOR[license.categoria || 'Other'] ?? CAT_COLOR['Other'];
     const initials = license.name.slice(0, 2).toUpperCase();
 
     useEffect(() => {
@@ -75,8 +75,7 @@ function CredDrawer({ license, onClose }: { license: License; onClose: () => voi
                 style={{
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-mid)',
-                    borderRadius: 20,
-                    padding: 28,
+                    borderRadius: 20, padding: 28,
                     width: '100%', maxWidth: 420,
                     boxShadow: '0 24px 64px rgba(0,0,0,0.45)',
                     animation: 'fadeInUp 0.2s ease',
@@ -85,24 +84,24 @@ function CredDrawer({ license, onClose }: { license: License; onClose: () => voi
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
                     <div style={{
-                        width: 52, height: 52, borderRadius: 14,
+                        width: 48, height: 48, borderRadius: 13,
                         background: `${color}20`, border: `1px solid ${color}40`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 18, fontWeight: 800, color, flexShrink: 0,
+                        fontSize: 17, fontWeight: 800, color, flexShrink: 0,
                         fontFamily: 'Outfit, sans-serif',
                     }}>
                         {initials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 17, fontWeight: 700, fontFamily: 'Outfit, sans-serif', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Outfit, sans-serif', color: 'var(--text-primary)', lineHeight: 1.2 }}>
                             {license.name}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
                             {license.vendor}
                             <span style={{
-                                marginLeft: 8, padding: '2px 8px', borderRadius: 99,
+                                padding: '2px 8px', borderRadius: 99,
                                 background: `${color}18`, color,
-                                fontSize: 11, fontWeight: 600,
+                                fontSize: 10, fontWeight: 600,
                             }}>
                                 {license.categoria || 'Other'}
                             </span>
@@ -116,23 +115,13 @@ function CredDrawer({ license, onClose }: { license: License; onClose: () => voi
                     </button>
                 </div>
 
-                {/* Credential fields */}
+                {/* Fields */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-
                     {license.login && (
-                        <div style={{
-                            background: 'var(--bg-elevated)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 12, padding: '14px 16px',
-                        }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-                                Login
-                            </div>
+                        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Login</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{
-                                    flex: 1, fontFamily: 'JetBrains Mono, monospace',
-                                    fontSize: 14, color: 'var(--text-primary)', wordBreak: 'break-all',
-                                }}>
+                                <span style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
                                     {license.login}
                                 </span>
                                 <CopyBtn text={license.login} />
@@ -141,20 +130,10 @@ function CredDrawer({ license, onClose }: { license: License; onClose: () => voi
                     )}
 
                     {license.password && (
-                        <div style={{
-                            background: 'var(--bg-elevated)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 12, padding: '14px 16px',
-                        }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-                                Senha
-                            </div>
+                        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Senha</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{
-                                    flex: 1, fontFamily: 'JetBrains Mono, monospace',
-                                    fontSize: 14, color: 'var(--text-primary)', wordBreak: 'break-all',
-                                    letterSpacing: showPass ? 'normal' : '0.15em',
-                                }}>
+                                <span style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace', fontSize: 14, color: 'var(--text-primary)', letterSpacing: showPass ? 'normal' : '0.15em', wordBreak: 'break-all' }}>
                                     {showPass ? license.password : '•'.repeat(Math.min(license.password.length, 16))}
                                 </span>
                                 <button
@@ -165,7 +144,6 @@ function CredDrawer({ license, onClose }: { license: License; onClose: () => voi
                                         color: 'var(--text-muted)', cursor: 'pointer',
                                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                         width: 30, height: 30, borderRadius: 7, flexShrink: 0,
-                                        transition: 'all 0.15s',
                                     }}
                                 >
                                     {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -176,52 +154,29 @@ function CredDrawer({ license, onClose }: { license: License; onClose: () => voi
                     )}
 
                     {license.key && (
-                        <div style={{
-                            background: 'var(--bg-elevated)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 12, padding: '14px 16px',
-                        }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
-                                Chave de Licença
-                            </div>
+                        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Chave de Licença</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{
-                                    flex: 1, fontFamily: 'JetBrains Mono, monospace',
-                                    fontSize: 12, color: 'var(--text-primary)', wordBreak: 'break-all',
-                                }}>
+                                <span style={{ flex: 1, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
                                     {license.key}
                                 </span>
                                 <CopyBtn text={license.key} />
                             </div>
                         </div>
                     )}
-
-                    {!license.login && !license.password && !license.key && (
-                        <div style={{
-                            padding: '24px 16px', textAlign: 'center',
-                            color: 'var(--text-muted)', fontSize: 13,
-                        }}>
-                            Nenhuma credencial cadastrada.
-                        </div>
-                    )}
                 </div>
 
                 {license.notes && (
                     <div style={{
-                        marginTop: 14, padding: '10px 14px',
+                        marginTop: 12, padding: '10px 14px',
                         background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)',
-                        borderRadius: 10, fontSize: 12, color: 'var(--text-secondary)',
-                        lineHeight: 1.5,
+                        borderRadius: 10, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5,
                     }}>
                         {license.notes}
                     </div>
                 )}
 
-                <button
-                    className="btn btn-ghost"
-                    onClick={onClose}
-                    style={{ width: '100%', marginTop: 18, justifyContent: 'center' }}
-                >
+                <button className="btn btn-ghost" onClick={onClose} style={{ width: '100%', marginTop: 18, justifyContent: 'center' }}>
                     Fechar
                 </button>
             </div>
@@ -229,11 +184,11 @@ function CredDrawer({ license, onClose }: { license: License; onClose: () => voi
     );
 }
 
-/* ── Tool card ─────────────────────────────────────────── */
-function ToolCard({ license, onClick }: { license: License; onClick: () => void }) {
+/* ── List row ──────────────────────────────────────────── */
+function VaultRow({ license, onClick }: { license: License; onClick: () => void }) {
     const color    = CAT_COLOR[license.categoria || 'Other'] ?? CAT_COLOR['Other'];
     const initials = license.name.slice(0, 2).toUpperCase();
-    const hasAccess = !!(license.login || license.password || license.key);
+    const statusColor = STATUS_COLOR[license.status] ?? 'var(--text-muted)';
 
     return (
         <button
@@ -241,79 +196,71 @@ function ToolCard({ license, onClick }: { license: License; onClick: () => void 
             style={{
                 all: 'unset',
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
                 gap: 14,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                padding: '18px 18px 16px',
+                padding: '12px 16px',
+                borderRadius: 12,
                 cursor: 'pointer',
-                transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
-                position: 'relative',
-                textAlign: 'left',
+                transition: 'background 150ms, border-color 150ms',
                 width: '100%',
                 boxSizing: 'border-box',
+                borderBottom: '1px solid var(--border)',
             }}
-            onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)';
-                (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow)';
-                (e.currentTarget as HTMLElement).style.borderColor = `${color}50`;
-            }}
-            onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.transform = '';
-                (e.currentTarget as HTMLElement).style.boxShadow = '';
-                (e.currentTarget as HTMLElement).style.borderColor = '';
-            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-elevated)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
         >
-            {/* Status dot */}
-            <div style={{
-                position: 'absolute', top: 14, right: 14,
-                width: 8, height: 8, borderRadius: '50%',
-                background: STATUS_COLOR[license.status] ?? 'var(--text-muted)',
-                boxShadow: license.status === 'Ativa' ? `0 0 0 3px ${STATUS_COLOR['Ativa']}25` : 'none',
-            }} title={license.status} />
-
             {/* Avatar */}
             <div style={{
-                width: 44, height: 44, borderRadius: 12,
+                width: 38, height: 38, borderRadius: 10, flexShrink: 0,
                 background: `${color}18`, border: `1px solid ${color}35`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, fontWeight: 800, color,
-                fontFamily: 'Outfit, sans-serif', flexShrink: 0,
+                fontSize: 13, fontWeight: 800, color, fontFamily: 'Outfit, sans-serif',
             }}>
                 {initials}
             </div>
 
             {/* Name + vendor */}
-            <div>
-                <div style={{
-                    fontSize: 14, fontWeight: 700, fontFamily: 'Inter, sans-serif',
-                    color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: 3,
-                }}>
+            <div style={{ flex: '0 0 200px', minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {license.name}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                     {license.vendor}
                 </div>
             </div>
 
-            {/* Footer */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
+            {/* Categoria */}
+            <div style={{ flex: '0 0 90px' }}>
                 <span style={{
-                    fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 99,
+                    fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 99,
                     background: `${color}15`, color, border: `1px solid ${color}30`,
                 }}>
                     {license.categoria || 'Other'}
                 </span>
-                {hasAccess && (
-                    <span style={{
-                        display: 'flex', alignItems: 'center', gap: 4,
-                        fontSize: 10, color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif',
-                    }}>
-                        <KeyRound size={10} />
-                        ver acesso
+            </div>
+
+            {/* Login preview */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+                {license.login ? (
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                        {license.login}
                     </span>
+                ) : (
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
                 )}
+            </div>
+
+            {/* Status */}
+            <div style={{ flex: '0 0 80px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: statusColor, fontWeight: 500 }}>{license.status}</span>
+            </div>
+
+            {/* Arrow */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)', fontSize: 12, fontWeight: 500, flexShrink: 0 }}>
+                <KeyRound size={13} />
+                <span style={{ fontFamily: 'Inter, sans-serif' }}>Ver</span>
+                <ChevronRight size={13} />
             </div>
         </button>
     );
@@ -321,20 +268,22 @@ function ToolCard({ license, onClick }: { license: License; onClick: () => void 
 
 /* ── Main page ─────────────────────────────────────────── */
 export default function VaultPage() {
-    const [search,     setSearch]     = useState('');
-    const [filter,     setFilter]     = useState('Todos');
-    const [selected,   setSelected]   = useState<License | undefined>();
+    const [search,   setSearch]   = useState('');
+    const [filter,   setFilter]   = useState('Todos');
+    const [selected, setSelected] = useState<License | undefined>();
 
     const { data: licenses, isLoading } = useRealtimeTable<License>('/api/licenses', 'licenses');
 
-    const filtered = useMemo(() => licenses.filter(l => {
-        const q = search.toLowerCase();
-        const matchSearch = !q || l.name.toLowerCase().includes(q) || l.vendor.toLowerCase().includes(q);
-        const matchFilter = filter === 'Todos' || l.status === filter || (l.categoria || 'Other') === filter;
-        return matchSearch && matchFilter;
-    }), [licenses, search, filter]);
+    const filtered = useMemo(() => licenses
+        .filter(l => !!(l.login || l.password || l.key))
+        .filter(l => {
+            const q = search.toLowerCase();
+            const matchSearch = !q || l.name.toLowerCase().includes(q) || l.vendor.toLowerCase().includes(q);
+            const matchFilter = filter === 'Todos' || l.status === filter || (l.categoria || 'Other') === filter;
+            return matchSearch && matchFilter;
+        }), [licenses, search, filter]);
 
-    const activeCount = licenses.filter(l => l.status === 'Ativa').length;
+    const activeCount = filtered.filter(l => l.status === 'Ativa').length;
 
     return (
         <div>
@@ -356,15 +305,15 @@ export default function VaultPage() {
                         <h1 style={{ fontSize: 22, fontWeight: 800, fontFamily: 'Outfit, sans-serif', color: 'var(--text-primary)', margin: 0, lineHeight: 1.1 }}>
                             Vault
                         </h1>
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, marginTop: 2 }}>
-                            {activeCount} ativas · {licenses.length} no total — clique para ver as credenciais
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '3px 0 0' }}>
+                            {activeCount} ativas · {filtered.length} com credenciais — clique para ver acesso
                         </p>
                     </div>
                 </div>
             </div>
 
             {/* Controls */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
                 <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
                     <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                     <input
@@ -375,12 +324,7 @@ export default function VaultPage() {
                         style={{ paddingLeft: 36, width: '100%', boxSizing: 'border-box' }}
                     />
                 </div>
-                <select
-                    className="select"
-                    value={filter}
-                    onChange={e => setFilter(e.target.value)}
-                    style={{ width: 150 }}
-                >
+                <select className="select" value={filter} onChange={e => setFilter(e.target.value)} style={{ width: 150 }}>
                     <option value="Todos">Todos</option>
                     <option value="Ativa">Ativas</option>
                     <option value="Expirada">Expiradas</option>
@@ -391,7 +335,7 @@ export default function VaultPage() {
                 </select>
             </div>
 
-            {/* Grid */}
+            {/* List */}
             {isLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
                     <div className="spinner" />
@@ -407,14 +351,30 @@ export default function VaultPage() {
                     )}
                 </div>
             ) : (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(185px, 1fr))',
-                    gap: 12,
-                }}>
-                    {filtered.map(l => (
-                        <ToolCard key={l.id} license={l} onClick={() => setSelected(l)} />
-                    ))}
+                <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                    {/* Table header */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: 14,
+                        padding: '10px 16px',
+                        borderBottom: '1px solid var(--border)',
+                        background: 'var(--bg-elevated)',
+                    }}>
+                        <div style={{ flex: '0 0 38px' }} />
+                        <div style={{ flex: '0 0 200px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Ferramenta</div>
+                        <div style={{ flex: '0 0 90px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Categoria</div>
+                        <div style={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Login</div>
+                        <div style={{ flex: '0 0 80px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
+                        <div style={{ flex: '0 0 60px' }} />
+                    </div>
+
+                    {/* Rows */}
+                    <div>
+                        {filtered.map((l, i) => (
+                            <div key={l.id} style={{ borderBottom: i === filtered.length - 1 ? 'none' : '1px solid var(--border)' }}>
+                                <VaultRow license={l} onClick={() => setSelected(l)} />
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
