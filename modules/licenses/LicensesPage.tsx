@@ -5,7 +5,7 @@ import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import {
     Plus, Trash2, Shield, Loader2, X,
     BarChart3, Search, Filter, Eye, EyeOff,
-    Copy, Check, TrendingUp, DollarSign
+    Copy, Check, TrendingUp, DollarSign, KeyRound
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -55,6 +55,105 @@ function CopyBtn({ text }: { text: string }) {
         >
             {copied ? <Check size={12} /> : <Copy size={12} />}
         </button>
+    );
+}
+
+function CredentialsModal({ license, onClose }: { license: License; onClose: () => void }) {
+    const [showPass, setShowPass] = useState(false);
+
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handleKey);
+        return () => document.removeEventListener('keydown', handleKey);
+    }, [onClose]);
+
+    const hasAny = license.login || license.password || license.key;
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal" style={{ maxWidth: 400 }} role="dialog" aria-modal="true" aria-labelledby="cred-modal-title">
+
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                            width: 38, height: 38, borderRadius: 10,
+                            background: 'var(--accent-dim)', border: '1px solid var(--accent-mid)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                            <KeyRound size={17} color="var(--accent)" />
+                        </div>
+                        <div>
+                            <div id="cred-modal-title" style={{ fontSize: 15, fontWeight: 700, fontFamily: 'Outfit, sans-serif', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                                {license.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{license.vendor}</div>
+                        </div>
+                    </div>
+                    <button onClick={onClose} aria-label="Fechar" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, borderRadius: 6 }}>
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Fields */}
+                {!hasAny ? (
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>
+                        Nenhuma credencial cadastrada para esta licença.
+                    </p>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {license.login && (
+                            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>Login</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
+                                        {license.login}
+                                    </span>
+                                    <CopyBtn text={license.login} />
+                                </div>
+                            </div>
+                        )}
+
+                        {license.password && (
+                            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>Senha</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, color: 'var(--text-primary)', letterSpacing: showPass ? 'normal' : '0.12em', wordBreak: 'break-all' }}>
+                                        {showPass ? license.password : '•'.repeat(Math.min(license.password.length, 14))}
+                                    </span>
+                                    <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                                        <button
+                                            onClick={() => setShowPass(p => !p)}
+                                            title={showPass ? 'Ocultar' : 'Revelar'}
+                                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: 4, borderRadius: 4, transition: 'color 0.15s' }}
+                                        >
+                                            {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                                        </button>
+                                        <CopyBtn text={license.password} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {license.key && (
+                            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>Chave de Licença</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
+                                        {license.key}
+                                    </span>
+                                    <CopyBtn text={license.key} />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button className="btn btn-ghost" onClick={onClose}>Fechar</button>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -276,6 +375,7 @@ function CategoriaBadge({ categoria }: { categoria?: string }) {
 export default function LicensesPage() {
     const [modal,            setModal]           = useState(false);
     const [editingLicense,   setEditingLicense]  = useState<License | undefined>();
+    const [credLicense,      setCredLicense]     = useState<License | undefined>();
     const [search,           setSearch]          = useState('');
     const [statusFilter,     setStatusFilter]    = useState('Todos');
     const [categoriaFilter,  setCategoriaFilter] = useState('Todas');
@@ -325,6 +425,12 @@ export default function LicensesPage() {
                     onClose={() => { setModal(false); setEditingLicense(undefined); }}
                     onSave={() => refresh()}
                     license={editingLicense}
+                />
+            )}
+            {credLicense && (
+                <CredentialsModal
+                    license={credLicense}
+                    onClose={() => setCredLicense(undefined)}
                 />
             )}
 
@@ -522,7 +628,18 @@ export default function LicensesPage() {
                                             {fmtDate(l.renewal_date)}
                                         </td>
                                         <td>
-                                            <div style={{ display: 'flex', gap: 8 }}>
+                                            <div style={{ display: 'flex', gap: 6 }}>
+                                                {(l.login || l.password || l.key) && (
+                                                    <button
+                                                        onClick={() => setCredLicense(l)}
+                                                        className="btn btn-ghost"
+                                                        style={{ padding: '5px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, color: 'var(--accent)' }}
+                                                        title="Ver credenciais de acesso"
+                                                    >
+                                                        <KeyRound size={13} />
+                                                        Acesso
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => { setEditingLicense(l); setModal(true); }}
                                                     className="btn btn-ghost"
